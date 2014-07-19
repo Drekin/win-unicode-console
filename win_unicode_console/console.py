@@ -4,6 +4,10 @@ import sys
 import __main__
 
 
+def print_banner():
+	print("Python {} on {}".format(sys.version, sys.platform))
+	print('Type "help", "copyright", "credits" or "license" for more information.')
+
 class InteractiveConsole(code.InteractiveConsole):
 	# code.InteractiveConsole without banner
 	# exits on EOF
