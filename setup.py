@@ -24,7 +24,7 @@ setup(
 	author_email="drekin@gmail.com",
 	license="MIT",
 	url=URL,
-	download_url="{}/tarball/{}".format(URL, VERSION),
+	download_url="{}/archive/{}.zip".format(URL, VERSION),
 	
 	description="Enable Unicode input and display when running Python from Windows console.",
 	long_description=read(README),
