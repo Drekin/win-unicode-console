@@ -13,6 +13,11 @@ ReadConsoleW = kernel32.ReadConsoleW
 WriteConsoleW = kernel32.WriteConsoleW
 GetLastError = kernel32.GetLastError
 
+PyObject_AsReadBuffer = pythonapi.PyObject_AsReadBuffer
+
+
+ERROR_SUCCESS = 0
+ERROR_NOT_ENOUGH_MEMORY = 8
 ERROR_OPERATION_ABORTED = 995
 
 STDIN_HANDLE = GetStdHandle(-10)
@@ -25,7 +30,7 @@ STDERR_FILENO = 2
 
 EOF = b"\x1a"
 
-PyObject_AsReadBuffer = pythonapi.PyObject_AsReadBuffer
+MAX_BYTES_WRITTEN = 32767	# arbitrary because WriteConsoleW ability to write big buffers depends on heap usage
 
 
 class WindowsConsoleRawIOBase(io.RawIOBase):
@@ -50,7 +55,7 @@ class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 		if GetLastError() == ERROR_OPERATION_ABORTED:
 			time.sleep(0.1)	# wait for KeyboardInterrupt
 		if not retval:
-			raise OSError
+			raise OSError("Windows error {}".format(GetLastError()))
 		
 		if buffer[0] == EOF:
 			return 0
@@ -61,16 +66,32 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 	def writable(self):
 		return True
 	
-	def write(self, b):	# writes only even number of bytes, may loop io.BufferedWriter.flush() when buffer has odd length
+	@staticmethod
+	def _error_message(errno):
+		if errno == ERROR_SUCCESS:
+			return "Windows error {} (ERROR_SUCCESS); zero bytes written on nonzero input, probably just one byte given".format(errno)
+		elif errno == ERROR_NOT_ENOUGH_MEMORY:
+			return "Windows error {} (ERROR_NOT_ENOUGH_MEMORY); try to lower `win_unicode_console.streams.MAX_BYTES_WRITTEN`".format(errno)
+		else:
+			return "Windows error {}".format(errno)
+	
+	def write(self, b):
 		buffer_type = c_char * len(b) 
 		buffer = c_void_p()
 		length = c_ssize_t()
 		PyObject_AsReadBuffer(py_object(b), byref(buffer), byref(length))
-		code_units_to_be_written = len(b) // 2
+		code_units_to_be_written = min(len(b), MAX_BYTES_WRITTEN) // 2
 		code_units_written = c_int()
 		
 		retval = WriteConsoleW(self.handle, buffer, code_units_to_be_written, byref(code_units_written), None)
-		return 2 * code_units_written.value
+		bytes_written = 2 * code_units_written.value
+		
+		# fixes both infinite loop of io.BufferedWriter.flush() on when the buffer has odd length
+		#	and situation when WriteConsoleW refuses to write lesser that MAX_BYTES_WRITTEN bytes
+		if bytes_written == 0 != len(b):
+			raise OSError(self._error_message(GetLastError()))
+		else:
+			return bytes_written
 
 
 stdin = io.TextIOWrapper(
