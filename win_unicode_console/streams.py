@@ -46,9 +46,15 @@ class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 		return True
 	
 	def readinto(self, b):
-		buffer_type = c_char * len(b) 
+		bytes_to_be_read = len(b)
+		if not bytes_to_be_read:
+			return 0
+		elif bytes_to_be_read % 2:
+			raise ValueError("cannot read odd number of bytes from UTF-16-LE encoded console")
+		
+		buffer_type = c_char * bytes_to_be_read 
 		buffer = buffer_type.from_buffer(b)
-		code_units_to_be_read = len(b) // 2
+		code_units_to_be_read = bytes_to_be_read // 2
 		code_units_read = c_int()
 		
 		retval = ReadConsoleW(self.handle, buffer, code_units_to_be_read, byref(code_units_read), None)
@@ -76,11 +82,12 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 			return "Windows error {}".format(errno)
 	
 	def write(self, b):
-		buffer_type = c_char * len(b) 
+		bytes_to_be_written = len(b)
+		buffer_type = c_char * bytes_to_be_written
 		buffer = c_void_p()
 		length = c_ssize_t()
 		PyObject_AsReadBuffer(py_object(b), byref(buffer), byref(length))
-		code_units_to_be_written = min(len(b), MAX_BYTES_WRITTEN) // 2
+		code_units_to_be_written = min(bytes_to_be_written, MAX_BYTES_WRITTEN) // 2
 		code_units_written = c_int()
 		
 		retval = WriteConsoleW(self.handle, buffer, code_units_to_be_written, byref(code_units_written), None)
@@ -88,7 +95,7 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 		
 		# fixes both infinite loop of io.BufferedWriter.flush() on when the buffer has odd length
 		#	and situation when WriteConsoleW refuses to write lesser that MAX_BYTES_WRITTEN bytes
-		if bytes_written == 0 != len(b):
+		if bytes_written == 0 != bytes_to_be_written:
 			raise OSError(self._error_message(GetLastError()))
 		else:
 			return bytes_written
