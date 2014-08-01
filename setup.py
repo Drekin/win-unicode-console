@@ -1,5 +1,6 @@
 
 import os.path as path
+from io import open # PY2
 from setuptools import setup
 
 

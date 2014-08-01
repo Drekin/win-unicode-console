@@ -1,4 +1,6 @@
 
+from __future__ import print_function # PY2
+
 import sys
 import traceback
 from ctypes import (pythonapi, cdll, cast, addressof, 
@@ -96,7 +98,8 @@ if pyreadline:
 	pyreadline_manager = PyReadlineManager()
 
 
-def enable(*, use_pyreadline=True):
+# PY3 # def enable(*, use_pyreadline=True):
+def enable(use_pyreadline=True):
 	if sys.stdin.encoding != sys.stdout.encoding:
 		raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
 	

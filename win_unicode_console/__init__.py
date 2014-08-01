@@ -1,11 +1,14 @@
 
+from __future__ import absolute_import # PY2
+
 from . import info
 info.check_Windows()
 
 from . import streams, console, readline_hook
 
 
-def enable(*, 
+# PY3 # def enable(*, 
+def enable(
 		stdin = Ellipsis, 
 		stdout = Ellipsis, 
 		stderr = Ellipsis, 

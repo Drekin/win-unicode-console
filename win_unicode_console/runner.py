@@ -1,4 +1,6 @@
 
+from __future__ import print_function # PY2
+
 import __main__
 import argparse
 import sys
@@ -8,6 +10,7 @@ from ctypes import pythonapi, POINTER, c_long, cast
 from types import CodeType as Code
 
 from . import console, enable
+from .info import PY2
 
 
 inspect_flag = cast(pythonapi.Py_InspectFlag, POINTER(c_long)).contents
@@ -84,18 +87,29 @@ def run_script(args):
 	path = args.script
 	__main__.__file__ = path
 	
-	try:
-		code = get_code(path)
-	except Exception as e:
-		print_exception_without_first_line(e.__class__, e, e.__traceback__.tb_next.tb_next)
-	else:
+	if PY2:
 		try:
-			exec(code, __main__.__dict__)
+			execfile(path, __main__.__dict__)
 		except BaseException as e:
 			if not sys.flags.inspect and isinstance(e, SystemExit):
 				raise
 			else:
-				traceback.print_exception(e.__class__, e, e.__traceback__.tb_next)
+				etype, e, tb = sys.exc_info()
+				traceback.print_exception(etype, e, tb.tb_next)
+		
+	else: # PY3
+		try:
+			code = get_code(path)
+		except Exception as e:
+			traceback.print_exception(e.__class__, e, None)
+		else:
+			try:
+				exec(code, __main__.__dict__)
+			except BaseException as e:
+				if not sys.flags.inspect and isinstance(e, SystemExit):
+					raise
+				else:
+					traceback.print_exception(e.__class__, e, e.__traceback__.tb_next)
 
 def run_with_custom_repl(args):
 	enable()

@@ -57,7 +57,8 @@ class WindowsConsoleRawIOBase(_ReprMixin, io.RawIOBase):
 		return self.file_no
 	
 	def isatty(self):
-		super().isatty()	# for close check in default implementation
+		# PY3 # super().isatty()	# for close check in default implementation
+		super(WindowsConsoleRawIOBase, self).isatty()
 		return True
 
 class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
@@ -192,7 +193,8 @@ class TextTranscodingWrapper(TextStreamWrapper):
 	encoding = None # disable the descriptor
 	
 	def __init__(self, base, encoding):
-		super().__init__(base)
+		# PY3 # super().__init__(base)
+		super(TextTranscodingWrapper, self).__init__(base)
 		self.encoding = encoding
 
 class StrStreamWrapper(TextStreamWrapper):
@@ -244,7 +246,8 @@ def check_stream(stream, fileno):
 		else:
 			return False
 
-def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
+# PY3 # def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
+def enable(stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 	# defaults
 	# transcoding because Python tokenizer cannot handle UTF-16
 	if stdin is Ellipsis:
@@ -261,5 +264,6 @@ def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 	if stderr is not None and check_stream(sys.stderr, STDERR_FILENO):
 		sys.stderr = stderr
 
-def enable_only(*, stdin=None, stdout=None, stderr=None):
+# PY3 # def enable_only(*, stdin=None, stdout=None, stderr=None):
+def enable_only(stdin=None, stdout=None, stderr=None):
 	enable(stdin=stdin, stdout=stdout, stderr=stderr)

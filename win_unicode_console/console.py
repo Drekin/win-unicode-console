@@ -1,4 +1,6 @@
 
+from __future__ import print_function # PY2
+
 import __main__
 import code
 import sys
@@ -8,7 +10,8 @@ def print_banner(file=sys.stderr):
 	print("Python {} on {}".format(sys.version, sys.platform), file=file)
 	print('Type "help", "copyright", "credits" or "license" for more information.', file=file)
 
-class InteractiveConsole(code.InteractiveConsole):
+# PY3 # class InteractiveConsole(code.InteractiveConsole):
+class InteractiveConsole(code.InteractiveConsole, object):
 	# code.InteractiveConsole without banner
 	# exits on EOF
 	# also more robust treating of sys.ps1, sys.ps2
@@ -17,14 +20,16 @@ class InteractiveConsole(code.InteractiveConsole):
 	
 	def __init__(self, locals=None, filename="<stdin>"):
 		self.done = False
-		super().__init__(locals, filename)
+		# PY3 # super().__init__(locals, filename)
+		super(InteractiveConsole, self).__init__(locals, filename)
 	
 	def raw_input(self, prompt=""):
 		sys.stderr.write(prompt)
 		return input()
 	
 	def runcode(self, code):
-		super().runcode(code)
+		# PY3 # super().runcode(code)
+		super(InteractiveConsole, self).runcode(code)
 		sys.stderr.flush()
 		sys.stdout.flush()
 	
@@ -70,8 +75,8 @@ class InteractiveConsole(code.InteractiveConsole):
 	
 	def on_EOF(self):
 		self.write("\n")
-		# sys.exit()
-		raise SystemExit from None
+		# PY3 # raise SystemExit from None
+		raise SystemExit
 
 
 running_console = None
