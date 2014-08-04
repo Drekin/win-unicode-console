@@ -13,6 +13,7 @@ class InteractiveConsole(code.InteractiveConsole):
 	# exits on EOF
 	# also more robust treating of sys.ps1, sys.ps2
 	# prints prompt into stderr rather than stdout
+	# flushes sys.stderr and sys.stdout
 	
 	def __init__(self, locals=None, filename="<stdin>"):
 		self.done = False
@@ -21,6 +22,11 @@ class InteractiveConsole(code.InteractiveConsole):
 	def raw_input(self, prompt=""):
 		sys.stderr.write(prompt)
 		return input()
+	
+	def runcode(self, code):
+		super().runcode(code)
+		sys.stderr.flush()
+		sys.stdout.flush()
 	
 	def interact(self):
 		#sys.ps1 = "~>> "

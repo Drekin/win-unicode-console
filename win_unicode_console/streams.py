@@ -111,15 +111,13 @@ stdout = io.TextIOWrapper(
 	io.BufferedWriter(
 		WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE)),
 	encoding = "utf-16-le",
-	line_buffering = True,
-	write_through = True)
+	line_buffering = True)
 
 stderr = io.TextIOWrapper(
 	io.BufferedWriter(
 		WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE)),
 	encoding="utf-16-le",
-	line_buffering=True,
-	write_through=True)
+	line_buffering=True)
 
 
 def disable():
