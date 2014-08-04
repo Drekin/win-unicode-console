@@ -1,6 +1,7 @@
 
-from ctypes import (byref, create_string_buffer, windll, pythonapi,
-	c_int, c_char, c_void_p, py_object, c_ssize_t)
+from ctypes import (byref, windll, c_int)
+
+from win_unicode_console.buffer import get_buffer
 
 import io
 import sys
@@ -12,8 +13,6 @@ GetStdHandle = kernel32.GetStdHandle
 ReadConsoleW = kernel32.ReadConsoleW
 WriteConsoleW = kernel32.WriteConsoleW
 GetLastError = kernel32.GetLastError
-
-PyObject_AsReadBuffer = pythonapi.PyObject_AsReadBuffer
 
 
 ERROR_SUCCESS = 0
@@ -52,8 +51,7 @@ class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 		elif bytes_to_be_read % 2:
 			raise ValueError("cannot read odd number of bytes from UTF-16-LE encoded console")
 		
-		buffer_type = c_char * bytes_to_be_read 
-		buffer = buffer_type.from_buffer(b)
+		buffer = get_buffer(b, writable=True)
 		code_units_to_be_read = bytes_to_be_read // 2
 		code_units_read = c_int()
 		
@@ -83,10 +81,7 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 	
 	def write(self, b):
 		bytes_to_be_written = len(b)
-		buffer_type = c_char * bytes_to_be_written
-		buffer = c_void_p()
-		length = c_ssize_t()
-		PyObject_AsReadBuffer(py_object(b), byref(buffer), byref(length))
+		buffer = get_buffer(b)
 		code_units_to_be_written = min(bytes_to_be_written, MAX_BYTES_WRITTEN) // 2
 		code_units_written = c_int()
 		
