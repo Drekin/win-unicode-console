@@ -1,5 +1,5 @@
 
-from ctypes import (byref, windll, c_int)
+from ctypes import byref, windll, c_ulong
 
 from win_unicode_console.buffer import get_buffer
 
@@ -53,7 +53,7 @@ class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 		
 		buffer = get_buffer(b, writable=True)
 		code_units_to_be_read = bytes_to_be_read // 2
-		code_units_read = c_int()
+		code_units_read = c_ulong()
 		
 		retval = ReadConsoleW(self.handle, buffer, code_units_to_be_read, byref(code_units_read), None)
 		if GetLastError() == ERROR_OPERATION_ABORTED:
@@ -83,7 +83,7 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 		bytes_to_be_written = len(b)
 		buffer = get_buffer(b)
 		code_units_to_be_written = min(bytes_to_be_written, MAX_BYTES_WRITTEN) // 2
-		code_units_written = c_int()
+		code_units_written = c_ulong()
 		
 		retval = WriteConsoleW(self.handle, buffer, code_units_to_be_written, byref(code_units_written), None)
 		bytes_written = 2 * code_units_written.value
