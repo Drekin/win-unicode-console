@@ -32,13 +32,26 @@ EOF = b"\x1a"
 MAX_BYTES_WRITTEN = 32767	# arbitrary because WriteConsoleW ability to write big buffers depends on heap usage
 
 
-class WindowsConsoleRawIOBase(io.RawIOBase):
+class ReprMixin:
+	def __repr__(self):
+		modname = self.__class__.__module__
+		clsname = self.__class__.__qualname__
+		attributes = []
+		for name in ["name", "encoding"]:
+			try:
+				value = getattr(self, name)
+			except AttributeError:
+				pass
+			else:
+				attributes.append("{}={}".format(name, repr(value)))
+		
+		return "<{}.{} {}>".format(modname, clsname, " ".join(attributes))
+
+
+class WindowsConsoleRawIOBase(ReprMixin, io.RawIOBase):
 	def __init__(self, name, handle):
 		self.name = name
 		self.handle = handle
-	
-	def __repr__(self):
-		return "<{} {}>".format(self.__class__.__name__, repr(self.name))
 
 class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 	def readable(self):
@@ -95,24 +108,87 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 		else:
 			return bytes_written
 
+class TextTranscodingWrapper(ReprMixin, io.TextIOBase):
+	encoding = None
+	
+	def __init__(self, base, encoding):
+		self.base = base
+		self.encoding = encoding
+	
+	@property
+	def errors(self):
+		return self.base.errors
+	
+	@property
+	def line_buffering(self):
+		return self.base.line_buffering
+	
+	def seekable(self):
+		return self.base.seekable()
+	
+	def readable(self):
+		return self.base.readable()
+	
+	def writable(self):
+		return self.base.writable()
+	
+	def flush(self):
+		self.base.flush()
+	
+	def close(self):
+		self.base.close()
+	
+	@property
+	def closed(self):
+		return self.base.closed
+	
+	@property
+	def name(self):
+		return self.base.name
+	
+	def fileno(self):
+		return self.base.fileno()
+	
+	def isatty(self):
+		return self.base.isatty()
+	
+	def write(self, s):
+		return self.base.write(s)
+	
+	def tell(self):
+		return self.base.tell()
+	
+	def truncate(self, pos=None):
+		return self.base.truncate(pos)
+	
+	def seek(self, cookie, whence=0):
+		return self.base.seek(cookie, whence)
+	
+	def read(self, size=None):
+		return self.base.read(size)
+	
+	def __next__(self):
+		return next(self.base)
+	
+	def readline(self, size=-1):
+		return self.base.readline(size)
+	
+	@property
+	def newlines(self):
+		return self.base.newlines
 
-stdin = io.TextIOWrapper(
-	io.BufferedReader(
-		WindowsConsoleRawReader("<stdin>", STDIN_HANDLE)),
-	encoding="utf-16-le",
-	line_buffering=True)
 
-stdout = io.TextIOWrapper(
-	io.BufferedWriter(
-		WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE)),
-	encoding = "utf-16-le",
-	line_buffering = True)
+stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE)
+stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE)
+stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE)
 
-stderr = io.TextIOWrapper(
-	io.BufferedWriter(
-		WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE)),
-	encoding="utf-16-le",
-	line_buffering=True)
+stdin_text = io.TextIOWrapper(io.BufferedReader(stdin_raw), encoding="utf-16-le", line_buffering=True)
+stdout_text = io.TextIOWrapper(io.BufferedWriter(stdout_raw), encoding="utf-16-le", line_buffering=True)
+stderr_text = io.TextIOWrapper(io.BufferedWriter(stderr_raw), encoding="utf-16-le", line_buffering=True)
+
+stdin_text_transcoded = TextTranscodingWrapper(stdin_text, encoding="utf-8")
+stdout_text_transcoded = TextTranscodingWrapper(stdout_text, encoding="utf-8")
+stderr_text_transcoded = TextTranscodingWrapper(stderr_text, encoding="utf-8")
 
 
 def disable():
@@ -135,20 +211,47 @@ def check_stream(stream, fileno):
 		else:
 			return False
 	
-def enable_reader():
+def enable_reader(*, transcode=None):
+	if transcode is None:
+		transcode = True	# transcoding because Python tokenizer cannot handle UTF-16
+	
 	if check_stream(sys.stdin, STDIN_FILENO):
-		sys.stdin = stdin
+		if transcode:
+			sys.stdin = stdin_text_transcoded
+		else:
+			sys.stdin = stdin_text
 
-def enable_writer():
+def enable_writer(*, transcode=None):
+	if transcode is None:
+		transcode = False
+	
 	if check_stream(sys.stdout, STDOUT_FILENO):
-		sys.stdout = stdout
+		if transcode:
+			sys.stdout = stdout_text_transcoded
+		else:
+			sys.stdout = stdout_text
 
-def enable_error_writer():
+def enable_error_writer(*, transcode=None):
+	if transcode is None:
+		transcode = False
+	
 	if check_stream(sys.stderr, STDERR_FILENO):
-		sys.stderr = stderr
+		if transcode:
+			sys.stderr = stderr_text_transcoded
+		else:
+			sys.stderr = stderr_text
 
-def enable():
-	enable_reader()
-	enable_writer()
-	enable_error_writer()
+enablers = {"stdin": enable_reader, "stdout": enable_writer, "stderr": enable_error_writer}
+
+def enable(streams=("stdin", "stdout", "stderr"), *, transcode=frozenset({"stdin"})):
+	if transcode is True:
+		transcode = enablers.keys()
+	elif transcode is False:
+		transcode = set()
+	
+	if not set(streams) | set(transcode) <= enablers.keys():
+		raise ValueError("invalid stream names")
+	
+	for stream in streams:
+		enablers[stream](transcode=(stream in transcode))
 
