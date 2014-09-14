@@ -27,4 +27,4 @@ You can also add ``win_unicode_console.streams.enable()`` to your ``sitecustomiz
 Acknowledgements
 ----------------
 
-The code of ``streams`` module is based the code submited to http://bugs.python.org/issue1602.
+The code of ``streams`` module is based on the code submited to http://bugs.python.org/issue1602.
