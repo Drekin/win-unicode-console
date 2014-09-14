@@ -49,9 +49,17 @@ class ReprMixin:
 
 
 class WindowsConsoleRawIOBase(ReprMixin, io.RawIOBase):
-	def __init__(self, name, handle):
+	def __init__(self, name, handle, fileno):
 		self.name = name
 		self.handle = handle
+		self.file_no = fileno
+	
+	def fileno(self):
+		return self.file_no
+	
+	def isatty(self):
+		super().isatty()	# for close check in default implementation
+		return True
 
 class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 	def readable(self):
@@ -178,9 +186,9 @@ class TextTranscodingWrapper(ReprMixin, io.TextIOBase):
 		return self.base.newlines
 
 
-stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE)
-stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE)
-stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE)
+stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
+stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE, STDOUT_FILENO)
+stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE, STDERR_FILENO)
 
 stdin_text = io.TextIOWrapper(io.BufferedReader(stdin_raw), encoding="utf-16-le", line_buffering=True)
 stdout_text = io.TextIOWrapper(io.BufferedWriter(stdout_raw), encoding="utf-16-le", line_buffering=True)
