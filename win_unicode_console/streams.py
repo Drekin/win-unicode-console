@@ -211,30 +211,22 @@ def check_stream(stream, fileno):
 		else:
 			return False
 	
-def enable_reader(*, transcode=None):
-	if transcode is None:
-		transcode = True	# transcoding because Python tokenizer cannot handle UTF-16
-	
+def enable_reader(*, transcode=True):
+		# transcoding because Python tokenizer cannot handle UTF-16
 	if check_stream(sys.stdin, STDIN_FILENO):
 		if transcode:
 			sys.stdin = stdin_text_transcoded
 		else:
 			sys.stdin = stdin_text
 
-def enable_writer(*, transcode=None):
-	if transcode is None:
-		transcode = False
-	
+def enable_writer(*, transcode=False):
 	if check_stream(sys.stdout, STDOUT_FILENO):
 		if transcode:
 			sys.stdout = stdout_text_transcoded
 		else:
 			sys.stdout = stdout_text
 
-def enable_error_writer(*, transcode=None):
-	if transcode is None:
-		transcode = False
-	
+def enable_error_writer(*, transcode=False):
 	if check_stream(sys.stderr, STDERR_FILENO):
 		if transcode:
 			sys.stderr = stderr_text_transcoded

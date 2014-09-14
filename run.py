@@ -6,7 +6,7 @@ def run():
 	import sys
 	from win_unicode_console import runner, console, streams
 	
-	streams.enable()
+	streams.enable(transcode=False)	# transcoding not needed with custom REPL
 	script_provided = len(sys.argv) > 1
 	
 	if script_provided:
