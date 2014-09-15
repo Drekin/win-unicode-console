@@ -208,6 +208,9 @@ def disable():
 	sys.stderr = sys.__stderr__
 
 def check_stream(stream, fileno):
+	if stream is None:	# e.g. with IDLE
+		return True
+	
 	try:
 		_fileno = stream.fileno()
 	except io.UnsupportedOperation:
