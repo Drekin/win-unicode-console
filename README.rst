@@ -25,6 +25,8 @@ When running Python in the standard console on Windows, there are several proble
   
   The module ``readline_hook`` provides our custom readline hook, which uses ``sys.stdin`` to get the input and is (de)activated by functions ``readline_hook.enable``, ``readline_hook.disable``. There also exists package ``pyreadline`` (https://github.com/pyreadline/pyreadline), which implements GNU readline features on Windows. It provides its own readline hook, which actually supports Unicode input. The problem is, that the input is then encoded using ``sys.stdout.encoding``, which may not be capable of encoding all the characters. Our custom stream objects solve the problem, so the readline hook of ``pyreadline`` can be used as well, and ``readline_hook.enable`` tries to use it if possible as default to preserve the input features of ``pyreadline``.
   
+- Readline hook can be called from two places – from the REPL and from ``input`` function. In the first case the prompt is encoded using ``sys.stdin.encoding``, but in the second case ``sys.stdout.encoding`` is used. So we need these two encodings be equal.
+  
 - Python tokenizer, which is used when parsing the input from REPL, cannot handle UTF-16 or generally any encoding containing null bytes. Because UTF-16-LE is the encoding of Unicode used by Windows, we have to additionally wrap our text stream objects (``io.TextIOWrapper`` with encoding UTF-16-LE over our raw console stream objects) with helper text io objects. This is done automatically by ``streams.enable`` when needed and can be configured.
 
 ``win_unicode_console`` package was tested on Python 3.4 and interacts well with ``pyreadline``, ``IPython``, and ``colorama`` packages.
@@ -43,7 +45,7 @@ Recommened usage is just calling ``win_unicode_console.enable()`` whenever the f
 
 Calling ``win_unicode_console.enable()`` may be done automatically on Python startup by putting the command to your ``sitecustomize`` or ``usercustomize`` script. See https://docs.python.org/3/tutorial/interpreter.html#the-customization-modules for more information.
 
-To run a Python script with our custom REPL (which is not needed with the approach above), type ``py -i -m run script.py`` instead of ``py -i script.py``. You can also put ``"C:\Windows\py.exe" -i -m rum "%1% %*`` to the registry in order to run .py files interactivelly and using custom REPL. To run the custom REPL when plain interactive console is run (just 'py') add environment variable ``PYTHONSTARTUP`` pointing to ``site-packages\run.py``.
+To run a Python script with our custom REPL (which is not needed with the approach above), type ``py -i -m run script.py`` instead of ``py -i script.py``. You can also put ``"C:\Windows\py.exe" -i -m rum "%1" %*`` to the registry in order to run .py files interactivelly and using custom REPL. To run the custom REPL when plain interactive console is run (just 'py') add environment variable ``PYTHONSTARTUP`` pointing to ``site-packages\run.py``.
 
 
 Backward incompatibility
