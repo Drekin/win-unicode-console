@@ -9,7 +9,7 @@ def read(*relative_path_parts):
 	with open(path.join(HERE, *relative_path_parts), encoding=ENCODING) as f:
 		return f.read()
 
-VERSION = "0.2"
+VERSION = "0.3"
 README = "README.rst"
 URL = "https://github.com/Drekin/win-unicode-console"
 
@@ -30,7 +30,7 @@ setup(
 	long_description=read(README),
 	keywords=["Windows", "Unicode", "console"],
 	classifiers=[
-		"Development Status :: 3 - Alpha",
+		"Development Status :: 4 - Beta",
 		"Environment :: Console",
 		"Intended Audience :: Developers",
 		"License :: OSI Approved :: MIT License",
