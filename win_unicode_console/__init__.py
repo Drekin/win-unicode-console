@@ -15,8 +15,13 @@ def enable(*,
 		if use_readline_hook and use_pyreadline and readline_hook.pyreadline:
 			transcode = True
 				# pyreadline assumes that encoding of all sys.stdio objects is the same
+			
+		elif use_repl:
+			transcode = False
+			
 		else:
-			transcode = ["stdin"]
+			transcode = True
+				# actually Python REPL assumes that sys.stdin.encoding == sys.stdout.encoding and cannot handle UTF-16 on both input and output
 	
 	streams_.enable(streams, transcode=transcode)
 	

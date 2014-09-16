@@ -31,15 +31,29 @@ class ReadlineHookManager:
 	def readline_wrapper(self, stdin, stdout, prompt):
 		try:
 			try:
+				if sys.stdin.encoding != sys.stdout.encoding:
+					raise ValueError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+				
+			except ValueError:
+				traceback.print_exc(file=sys.stderr)
+				try:
+					prompt = prompt.decode("utf-8")
+				except UnicodeDecodeError:
+					prompt = ""
+				
+			else:
+				prompt = prompt.decode(sys.stdout.encoding)
+			
+			try:
 				line = self.readline_hook(prompt)
 			except KeyboardInterrupt:
 				return 0
 			else:
-				return new_zero_terminated_string(line)
+				return new_zero_terminated_string(line.encode(sys.stdin.encoding))
 			
 		except:
 			print("Intenal win_unicode_console error", file=sys.stderr)
-			traceback.print_exc()
+			traceback.print_exc(file=sys.stderr)
 			return new_zero_terminated_string(b"\n")
 	
 	def install_hook(self, hook):
@@ -51,20 +65,10 @@ class ReadlineHookManager:
 		PyOS_ReadlineFunctionPointer.value = self.original_address
 
 
-def string_readline(prompt):
+def readline(prompt):
 	sys.stdout.write(prompt)
 	sys.stdout.flush()
 	return sys.stdin.readline()
-
-def make_bytes_readline(readline):
-	def bytes_readline_wrapper(prompt):
-		prompt = prompt.decode("utf-8")
-		line = readline(prompt)
-		return line.encode(sys.stdin.encoding)
-	
-	return bytes_readline_wrapper
-
-bytes_readline = make_bytes_readline(string_readline)
 
 
 class PyReadlineManager:
@@ -92,7 +96,7 @@ def enable(*, use_pyreadline=True):
 		pyreadline_manager.set_codepage(sys.stdin.encoding)
 			# pyreadline assumes that encoding of all sys.stdio objects is the same
 	else:
-		manager.install_hook(bytes_readline)
+		manager.install_hook(readline)
 
 def disable():
 	if pyreadline:

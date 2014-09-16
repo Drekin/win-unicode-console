@@ -230,14 +230,14 @@ def enable_reader(*, transcode=True):
 		else:
 			sys.stdin = stdin_text
 
-def enable_writer(*, transcode=False):
+def enable_writer(*, transcode=True):
 	if check_stream(sys.stdout, STDOUT_FILENO):
 		if transcode:
 			sys.stdout = stdout_text_transcoded
 		else:
 			sys.stdout = stdout_text
 
-def enable_error_writer(*, transcode=False):
+def enable_error_writer(*, transcode=True):
 	if check_stream(sys.stderr, STDERR_FILENO):
 		if transcode:
 			sys.stderr = stderr_text_transcoded
@@ -246,7 +246,7 @@ def enable_error_writer(*, transcode=False):
 
 enablers = {"stdin": enable_reader, "stdout": enable_writer, "stderr": enable_error_writer}
 
-def enable(streams=("stdin", "stdout", "stderr"), *, transcode=frozenset({"stdin"})):
+def enable(streams=("stdin", "stdout", "stderr"), *, transcode=frozenset(enablers.keys())):
 	if transcode is True:
 		transcode = enablers.keys()
 	elif transcode is False:
