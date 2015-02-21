@@ -1,12 +1,12 @@
 
 import sys, traceback
-from ctypes import pythonapi, windll, c_size_t, c_char_p, c_void_p, cast, CFUNCTYPE, POINTER, addressof
+from ctypes import pythonapi, cdll, c_size_t, c_char_p, c_void_p, cast, CFUNCTYPE, POINTER, addressof
 
 PyMem_Malloc = pythonapi.PyMem_Malloc
 PyMem_Malloc.restype = c_size_t
 PyMem_Malloc.argtypes = [c_size_t]
 
-strncpy = windll.msvcrt.strncpy
+strncpy = cdll.msvcrt.strncpy
 strncpy.restype = c_char_p
 strncpy.argtypes = [c_char_p, c_char_p, c_size_t]
 
