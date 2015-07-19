@@ -45,7 +45,7 @@ Recommened usage is just calling ``win_unicode_console.enable()`` whenever the f
 
 Calling ``win_unicode_console.enable()`` may be done automatically on Python startup by putting the command to your ``sitecustomize`` or ``usercustomize`` script. See https://docs.python.org/3/tutorial/interpreter.html#the-customization-modules for more information.
 
-To run a Python script with our custom REPL (which is not needed with the approach above), type ``py -i -m run script.py`` instead of ``py -i script.py``. You can also put ``"C:\Windows\py.exe" -i -m rum "%1" %*`` to the registry in order to run .py files interactivelly and using custom REPL. To run the custom REPL when plain interactive console is run (just 'py') add environment variable ``PYTHONSTARTUP`` pointing to ``site-packages\run.py``.
+To run a Python script with our custom REPL (which is not needed with the approach above), type ``py -i -m run script.py`` instead of ``py -i script.py``. You can also put ``"C:\Windows\py.exe" -i -m run "%1" %*`` to the registry in order to run .py files interactivelly and using custom REPL. To run the custom REPL when plain interactive console is run (just 'py') add environment variable ``PYTHONSTARTUP`` pointing to ``site-packages\run.py``.
 
 
 Backward incompatibility
