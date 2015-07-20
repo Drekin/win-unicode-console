@@ -1,5 +1,6 @@
 
-from win_unicode_console import streams, console, readline_hook
+from . import streams, console, readline_hook
+
 
 streams_ = streams
 

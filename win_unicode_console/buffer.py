@@ -1,7 +1,9 @@
 
-from ctypes import (byref, POINTER, Structure, pythonapi,
-	c_int, c_char, c_char_p, c_void_p, py_object, c_ssize_t)
 import sys
+import ctypes
+from ctypes import (byref, POINTER, pythonapi,
+	c_int, c_char, c_char_p, c_void_p, py_object, c_ssize_t)
+
 
 c_ssize_p = POINTER(c_ssize_t)
 
@@ -13,7 +15,7 @@ PyBUF_SIMPLE = 0
 PyBUF_WRITABLE = 1
 
 
-class Py_buffer(Structure):
+class Py_buffer(ctypes.Structure):
 	_fields_ = [
 		("buf", c_void_p),
 		("obj", py_object),

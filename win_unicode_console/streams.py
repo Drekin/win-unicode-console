@@ -1,11 +1,10 @@
 
-from ctypes import byref, windll, c_ulong
-
-from win_unicode_console.buffer import get_buffer
-
 import io
 import sys
 import time
+from ctypes import byref, windll, c_ulong
+
+from .buffer import get_buffer
 
 
 kernel32 = windll.kernel32

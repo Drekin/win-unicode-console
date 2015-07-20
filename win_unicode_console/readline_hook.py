@@ -1,6 +1,14 @@
 
-import sys, traceback
-from ctypes import pythonapi, cdll, c_size_t, c_char_p, c_void_p, cast, CFUNCTYPE, POINTER, addressof
+import sys
+import traceback
+from ctypes import (pythonapi, cdll, cast, addressof, 
+	c_size_t, c_char_p, c_void_p, CFUNCTYPE, POINTER)
+
+try:
+	import pyreadline.unicode_helper
+except ImportError:
+	pyreadline = None
+
 
 PyMem_Malloc = pythonapi.PyMem_Malloc
 PyMem_Malloc.restype = c_size_t
@@ -81,14 +89,11 @@ class PyReadlineManager:
 	def restore_original(self):
 		self.set_codepage(self.original_codepage)
 
-try:
-	import pyreadline.unicode_helper
-except ImportError:
-	pyreadline = None
-else:
-	pyreadline_manager = PyReadlineManager()
 
 manager = ReadlineHookManager()
+
+if pyreadline:
+	pyreadline_manager = PyReadlineManager()
 
 
 def enable(*, use_pyreadline=True):

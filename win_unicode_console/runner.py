@@ -1,10 +1,10 @@
 
-from types import CodeType as Code
+import __main__
 import sys
 import traceback
-import __main__
-from ctypes import pythonapi, POINTER, c_long, cast
 import tokenize
+from ctypes import pythonapi, POINTER, c_long, cast
+from types import CodeType as Code
 
 
 inspect_flag = cast(pythonapi.Py_InspectFlag, POINTER(c_long)).contents
@@ -73,7 +73,7 @@ class MainLoader:
 		code = get_code(self.path)
 		exec(code, __main__.__dict__)
 		return __main__
-		
+
 def run_script():
 	sys.argv.pop(0)	# so sys.argv looks correct from script being run
 	path = sys.argv[0]

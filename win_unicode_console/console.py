@@ -1,7 +1,7 @@
 
+import __main__
 import code
 import sys
-import __main__
 
 
 def print_banner():
