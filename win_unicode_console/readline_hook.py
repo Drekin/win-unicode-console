@@ -40,9 +40,9 @@ class ReadlineHookManager:
 		try:
 			try:
 				if sys.stdin.encoding != sys.stdout.encoding:
-					raise ValueError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+					raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
 				
-			except ValueError:
+			except RuntimeError:
 				traceback.print_exc(file=sys.stderr)
 				try:
 					prompt = prompt.decode("utf-8")
@@ -97,6 +97,9 @@ if pyreadline:
 
 
 def enable(*, use_pyreadline=True):
+	if sys.stdin.encoding != sys.stdout.encoding:
+		raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+	
 	if use_pyreadline and pyreadline:
 		pyreadline_manager.set_codepage(sys.stdin.encoding)
 			# pyreadline assumes that encoding of all sys.stdio objects is the same
