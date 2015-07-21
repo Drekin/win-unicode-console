@@ -4,9 +4,9 @@ import code
 import sys
 
 
-def print_banner():
-	print("Python {} on {}".format(sys.version, sys.platform))
-	print('Type "help", "copyright", "credits" or "license" for more information.')
+def print_banner(file=sys.stderr):
+	print("Python {} on {}".format(sys.version, sys.platform), file=file)
+	print('Type "help", "copyright", "credits" or "license" for more information.', file=file)
 
 class InteractiveConsole(code.InteractiveConsole):
 	# code.InteractiveConsole without banner
