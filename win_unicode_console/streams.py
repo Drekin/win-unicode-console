@@ -31,7 +31,7 @@ EOF = b"\x1a"
 MAX_BYTES_WRITTEN = 32767	# arbitrary because WriteConsoleW ability to write big buffers depends on heap usage
 
 
-class ReprMixin:
+class _ReprMixin:
 	def __repr__(self):
 		modname = self.__class__.__module__
 		clsname = self.__class__.__qualname__
@@ -47,7 +47,7 @@ class ReprMixin:
 		return "<{}.{} {}>".format(modname, clsname, " ".join(attributes))
 
 
-class WindowsConsoleRawIOBase(ReprMixin, io.RawIOBase):
+class WindowsConsoleRawIOBase(_ReprMixin, io.RawIOBase):
 	def __init__(self, name, handle, fileno):
 		self.name = name
 		self.handle = handle
@@ -115,12 +115,13 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 		else:
 			return bytes_written
 
-class TextTranscodingWrapper(ReprMixin, io.TextIOBase):
-	encoding = None
-	
-	def __init__(self, base, encoding):
+class _TextStreamWrapperMixin(_ReprMixin):
+	def __init__(self, base):
 		self.base = base
-		self.encoding = encoding
+	
+	@property
+	def encoding(self):
+		return self.base.encoding
 	
 	@property
 	def errors(self):
@@ -184,6 +185,25 @@ class TextTranscodingWrapper(ReprMixin, io.TextIOBase):
 	def newlines(self):
 		return self.base.newlines
 
+class TextStreamWrapper(_TextStreamWrapperMixin, io.TextIOBase):
+	pass
+
+class TextTranscodingWrapper(TextStreamWrapper):
+	encoding = None # disable the descriptor
+	
+	def __init__(self, base, encoding):
+		super().__init__(base)
+		self.encoding = encoding
+
+class StrStreamWrapper(TextStreamWrapper):
+	encoding = "utf-8"
+	
+	def write(self, s):
+		if isinstance(s, bytes):
+			s = s.decode(self.encoding)
+		
+		self.base.write(s)
+
 
 stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
 stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE, STDOUT_FILENO)
@@ -196,6 +216,9 @@ stderr_text = io.TextIOWrapper(io.BufferedWriter(stderr_raw), encoding="utf-16-l
 stdin_text_transcoded = TextTranscodingWrapper(stdin_text, encoding="utf-8")
 stdout_text_transcoded = TextTranscodingWrapper(stdout_text, encoding="utf-8")
 stderr_text_transcoded = TextTranscodingWrapper(stderr_text, encoding="utf-8")
+
+stdout_text_str = StrStreamWrapper(stdout_text)
+stderr_text_str = StrStreamWrapper(stderr_text)
 
 
 def disable():
@@ -220,40 +243,23 @@ def check_stream(stream, fileno):
 			return True
 		else:
 			return False
+
+def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
+	# defaults
+	# transcoding because Python tokenizer cannot handle UTF-16
+	if stdin is Ellipsis:
+		stdin = stdin_text_transcoded
+	if stdout is Ellipsis:
+		stdout = stdout_text_transcoded
+	if stderr is Ellipsis:
+		stderr = stderr_text_transcoded
 	
-def enable_reader(*, transcode=True):
-		# transcoding because Python tokenizer cannot handle UTF-16
-	if check_stream(sys.stdin, STDIN_FILENO):
-		if transcode:
-			sys.stdin = stdin_text_transcoded
-		else:
-			sys.stdin = stdin_text
+	if stdin is not None and check_stream(sys.stdin, STDIN_FILENO):
+		sys.stdin = stdin
+	if stdout is not None and check_stream(sys.stdout, STDOUT_FILENO):
+		sys.stdout = stdout
+	if stderr is not None and check_stream(sys.stderr, STDERR_FILENO):
+		sys.stderr = stderr
 
-def enable_writer(*, transcode=True):
-	if check_stream(sys.stdout, STDOUT_FILENO):
-		if transcode:
-			sys.stdout = stdout_text_transcoded
-		else:
-			sys.stdout = stdout_text
-
-def enable_error_writer(*, transcode=True):
-	if check_stream(sys.stderr, STDERR_FILENO):
-		if transcode:
-			sys.stderr = stderr_text_transcoded
-		else:
-			sys.stderr = stderr_text
-
-enablers = {"stdin": enable_reader, "stdout": enable_writer, "stderr": enable_error_writer}
-
-def enable(streams=("stdin", "stdout", "stderr"), *, transcode=frozenset(enablers.keys())):
-	if transcode is True:
-		transcode = enablers.keys()
-	elif transcode is False:
-		transcode = set()
-	
-	if not set(streams) | set(transcode) <= enablers.keys():
-		raise ValueError("invalid stream names")
-	
-	for stream in streams:
-		enablers[stream](transcode=(stream in transcode))
-
+def enable_only(*, stdin=None, stdout=None, stderr=None):
+	enable(stdin=stdin, stdout=stdout, stderr=stderr)
