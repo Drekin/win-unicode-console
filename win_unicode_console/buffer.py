@@ -1,8 +1,9 @@
 
-import sys
 import ctypes
 from ctypes import (byref, POINTER, pythonapi,
 	c_int, c_char, c_char_p, c_void_p, py_object, c_ssize_t)
+
+from .info import PY2
 
 
 c_ssize_p = POINTER(c_ssize_t)
@@ -30,7 +31,7 @@ class Py_buffer(ctypes.Structure):
 		("internal", c_void_p)
 	]
 	
-	if sys.version_info[0] < 3:
+	if PY2:
 		_fields_.insert(-1, ("smalltable", c_ssize_t * 2))
 	
 	@classmethod

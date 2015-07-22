@@ -1,4 +1,7 @@
 
+from . import info
+info.check_Windows()
+
 from . import streams, console, readline_hook
 
 
