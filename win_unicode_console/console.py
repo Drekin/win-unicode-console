@@ -5,6 +5,8 @@ import __main__
 import code
 import sys
 
+from .info import PY2
+
 
 def print_banner(file=sys.stderr):
 	print("Python {} on {}".format(sys.version, sys.platform), file=file)
@@ -25,7 +27,10 @@ class InteractiveConsole(code.InteractiveConsole, object):
 	
 	def raw_input(self, prompt=""):
 		sys.stderr.write(prompt)
-		return input()
+		if PY2:
+			return raw_input()
+		else:
+			return input()
 	
 	def runcode(self, code):
 		# PY3 # super().runcode(code)

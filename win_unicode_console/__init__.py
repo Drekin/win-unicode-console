@@ -1,10 +1,11 @@
 
-from __future__ import absolute_import # PY2
-
-from . import info
-info.check_Windows()
+from .info import check_Windows, PY2
+check_Windows()
 
 from . import streams, console, readline_hook
+
+if PY2:
+	from . import raw_input
 
 
 # PY3 # def enable(*, 
@@ -13,7 +14,8 @@ def enable(
 		stdout = Ellipsis, 
 		stderr = Ellipsis, 
 		use_readline_hook = True, 
-		use_pyreadline = True,
+		use_pyreadline = True, 
+		use_raw_input = True, # PY2
 		use_repl = False#, 
 	):
 	
@@ -22,12 +24,18 @@ def enable(
 	if use_readline_hook:
 		readline_hook.enable(use_pyreadline=use_pyreadline)
 	
+	if PY2 and use_raw_input:
+		raw_input.enable()
+	
 	if use_repl:
 		console.enable()
 
 def disable():
 	if console.running_console is not None:
 		console.disable()
+	
+	if PY2:
+		raw_input.disable()
 	
 	readline_hook.disable()
 	streams.disable()

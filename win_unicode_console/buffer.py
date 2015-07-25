@@ -1,6 +1,6 @@
 
 import ctypes
-from ctypes import (byref, POINTER, pythonapi,
+from ctypes import (byref, POINTER, pythonapi, 
 	c_int, c_char, c_char_p, c_void_p, py_object, c_ssize_t)
 
 from .info import PY2

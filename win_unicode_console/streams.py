@@ -5,6 +5,10 @@ import time
 from ctypes import byref, windll, c_ulong
 
 from .buffer import get_buffer
+from .info import PY2
+
+if PY2:
+	from .file_object import FileObject
 
 
 kernel32 = windll.kernel32
@@ -34,7 +38,12 @@ MAX_BYTES_WRITTEN = 32767	# arbitrary because WriteConsoleW ability to write big
 class _ReprMixin:
 	def __repr__(self):
 		modname = self.__class__.__module__
-		clsname = self.__class__.__qualname__
+		
+		if PY2:
+			clsname = self.__class__.__name__
+		else:
+			clsname = self.__class__.__qualname__
+		
 		attributes = []
 		for name in ["name", "encoding"]:
 			try:
@@ -110,11 +119,12 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 		bytes_written = 2 * code_units_written.value
 		
 		# fixes both infinite loop of io.BufferedWriter.flush() on when the buffer has odd length
-		#	and situation when WriteConsoleW refuses to write lesser that MAX_BYTES_WRITTEN bytes
+		#	and situation when WriteConsoleW refuses to write lesser than MAX_BYTES_WRITTEN bytes
 		if bytes_written == 0 != bytes_to_be_written:
 			raise OSError(self._error_message(GetLastError()))
 		else:
 			return bytes_written
+
 
 class _TextStreamWrapperMixin(_ReprMixin):
 	def __init__(self, base):
@@ -206,6 +216,15 @@ class StrStreamWrapper(TextStreamWrapper):
 		
 		self.base.write(s)
 
+if PY2:
+	class FileobjWrapper(_TextStreamWrapperMixin, file):
+		def __init__(self, base, f):
+			super(FileobjWrapper, self).__init__(base)
+			fileobj = FileObject.from_file(self)
+			fileobj.set_encoding(base.encoding)
+			fileobj.copy_file_pointer(f)
+			fileobj.readable = base.readable()
+
 
 stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
 stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE, STDOUT_FILENO)
@@ -221,6 +240,9 @@ stderr_text_transcoded = TextTranscodingWrapper(stderr_text, encoding="utf-8")
 
 stdout_text_str = StrStreamWrapper(stdout_text)
 stderr_text_str = StrStreamWrapper(stderr_text)
+if PY2:
+	stdin_text_fileobj = FileobjWrapper(stdin_text_transcoded, sys.__stdin__)
+	stdout_text_str_fileobj = FileobjWrapper(stdout_text_str, sys.__stdout__)
 
 
 def disable():
@@ -249,13 +271,20 @@ def check_stream(stream, fileno):
 # PY3 # def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 def enable(stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 	# defaults
-	# transcoding because Python tokenizer cannot handle UTF-16
-	if stdin is Ellipsis:
-		stdin = stdin_text_transcoded
-	if stdout is Ellipsis:
-		stdout = stdout_text_transcoded
-	if stderr is Ellipsis:
-		stderr = stderr_text_transcoded
+	if PY2:
+		if stdin is Ellipsis:
+			stdin = stdin_text_fileobj
+		if stdout is Ellipsis:
+			stdout = stdout_text_str
+		if stderr is Ellipsis:
+			stderr = stderr_text_str
+	else: # transcoding because Python tokenizer cannot handle UTF-16
+		if stdin is Ellipsis:
+			stdin = stdin_text_transcoded
+		if stdout is Ellipsis:
+			stdout = stdout_text_transcoded
+		if stderr is Ellipsis:
+			stderr = stderr_text_transcoded
 	
 	if stdin is not None and check_stream(sys.stdin, STDIN_FILENO):
 		sys.stdin = stdin
