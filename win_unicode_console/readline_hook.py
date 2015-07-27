@@ -3,8 +3,8 @@ from __future__ import print_function # PY2
 
 import sys
 import traceback
-from ctypes import (pythonapi, cdll, cast, addressof, 
-	c_size_t, c_char_p, c_void_p, CFUNCTYPE, POINTER)
+from ctypes import (pythonapi, cdll, cast, 
+	c_char_p, c_void_p, c_size_t, CFUNCTYPE)
 
 try:
 	import pyreadline.unicode_helper
@@ -30,20 +30,27 @@ def new_zero_terminated_string(b):
 	strncpy(cast(p, c_char_p), b, len(b) + 1)
 	return p
 
+def check_encodings():
+	if sys.stdin.encoding != sys.stdout.encoding:
+		raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+
+def stdio_readline(prompt):
+	sys.stdout.write(prompt)
+	sys.stdout.flush()
+	return sys.stdin.readline()
+
 
 class ReadlineHookManager:
 	def __init__(self):
 		self.readline_wrapper_ref = HOOKFUNC(self.readline_wrapper)
-		self.address = c_void_p.from_address(addressof(self.readline_wrapper_ref)).value
+		self.address = cast(self.readline_wrapper_ref, c_void_p).value
 		self.original_address = PyOS_ReadlineFunctionPointer.value
 		self.readline_hook = None
 	
 	def readline_wrapper(self, stdin, stdout, prompt):
 		try:
 			try:
-				if sys.stdin.encoding != sys.stdout.encoding:
-					raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
-				
+				check_encodings()
 			except RuntimeError:
 				traceback.print_exc(file=sys.stderr)
 				try:
@@ -75,12 +82,6 @@ class ReadlineHookManager:
 		PyOS_ReadlineFunctionPointer.value = self.original_address
 
 
-def readline(prompt):
-	sys.stdout.write(prompt)
-	sys.stdout.flush()
-	return sys.stdin.readline()
-
-
 class PyReadlineManager:
 	def __init__(self):
 		self.original_codepage = pyreadline.unicode_helper.pyreadline_codepage
@@ -100,18 +101,16 @@ if pyreadline:
 
 # PY3 # def enable(*, use_pyreadline=True):
 def enable(use_pyreadline=True):
-	if sys.stdin.encoding != sys.stdout.encoding:
-		raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+	check_encodings()
 	
 	if use_pyreadline and pyreadline:
 		pyreadline_manager.set_codepage(sys.stdin.encoding)
 			# pyreadline assumes that encoding of all sys.stdio objects is the same
 	else:
-		manager.install_hook(readline)
+		manager.install_hook(stdio_readline)
 
 def disable():
 	if pyreadline:
 		pyreadline_manager.restore_original()
-	
-	manager.restore_original()
-
+	else:
+		manager.restore_original()
