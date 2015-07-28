@@ -3,11 +3,12 @@ from __future__ import print_function # PY2
 
 import sys
 import traceback
+import warnings
 from ctypes import (pythonapi, cdll, cast, 
 	c_char_p, c_void_p, c_size_t, CFUNCTYPE)
 
 try:
-	import pyreadline.unicode_helper
+	import pyreadline
 except ImportError:
 	pyreadline = None
 
@@ -32,7 +33,10 @@ def new_zero_terminated_string(b):
 
 def check_encodings():
 	if sys.stdin.encoding != sys.stdout.encoding:
-		raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+		# raise RuntimeError("sys.stdin.encoding != sys.stdout.encoding, readline hook doesn't know, which one to use to decode prompt")
+		
+		warnings.warn("sys.stdin.encoding == {!r}, whereas sys.stdout.encoding == {!r}, readline hook consumer may assume they are the same".format(sys.stdin.encoding, sys.stdout.encoding), 
+			RuntimeWarning, stacklevel=3)
 
 def stdio_readline(prompt):
 	sys.stdout.write(prompt)
@@ -92,6 +96,16 @@ class PyReadlineManager:
 	def restore_original(self):
 		self.set_codepage(self.original_codepage)
 
+def pyreadline_is_active():
+	if not pyreadline:
+		return False
+	
+	ref = pyreadline.console.console.readline_ref
+	if ref is None:
+		return False
+	
+	return cast(ref, c_void_p).value == PyOS_ReadlineFunctionPointer.value
+
 
 manager = ReadlineHookManager()
 
@@ -106,6 +120,9 @@ def enable(use_pyreadline=True):
 	if use_pyreadline and pyreadline:
 		pyreadline_manager.set_codepage(sys.stdin.encoding)
 			# pyreadline assumes that encoding of all sys.stdio objects is the same
+		if not pyreadline_is_active():
+			manager.install_hook(stdio_readline)
+		
 	else:
 		manager.install_hook(stdio_readline)
 
