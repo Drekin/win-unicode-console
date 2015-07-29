@@ -220,10 +220,18 @@ if PY2:
 	class FileobjWrapper(_TextStreamWrapperMixin, file):
 		def __init__(self, base, f):
 			super(FileobjWrapper, self).__init__(base)
-			fileobj = FileObject.from_file(self)
+			fileobj = self._fileobj = FileObject.from_file(self)
 			fileobj.set_encoding(base.encoding)
 			fileobj.copy_file_pointer(f)
 			fileobj.readable = base.readable()
+		
+		# needed for the right interpretation of unicode literals in interactive mode when win_unicode_console is enabled in sitecustomize since Py_Initialize changes encoding afterwards
+		def _reset_encoding(self):
+			self._fileobj.set_encoding(self.base.encoding)
+		
+		def readline(self, size=-1):
+			self._reset_encoding()
+			return self.base.readline(size)
 
 
 stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
