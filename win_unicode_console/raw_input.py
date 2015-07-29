@@ -14,6 +14,8 @@ assure_PY2()
 original_raw_input = builtins.raw_input
 original_input = builtins.input
 
+RETURN_UNICODE = True
+
 
 PyOS_Readline = pythonapi.PyOS_Readline
 PyOS_Readline.restype = c_char_p
@@ -37,6 +39,16 @@ def stdout_encode(s):
 	else:
 		return s.encode(encoding)
 
+def stdin_encode(s):
+	if isinstance(s, bytes):
+		return s
+	encoding = sys.stdin.encoding
+	errors = sys.stdin.errors
+	if errors is not None:
+		return s.encode(encoding, errors)
+	else:
+		return s.encode(encoding)
+
 def stdin_decode(b):
 	if isinstance(b, unicode):
 		return b
@@ -51,8 +63,9 @@ def readline(prompt):
 	check_encodings()
 	prompt_bytes = stdout_encode(prompt)
 	line_bytes = PyOS_Readline(STDIN_FILE_POINTER, STDOUT_FILE_POINTER, prompt_bytes)
-	line = stdin_decode(line_bytes)
-	return line
+	return line_bytes
+
+
 
 
 def raw_input(prompt=""):
@@ -67,10 +80,19 @@ is printed without a trailing newline before reading."""
 	
 	tty = check_stream(sys.stdin, STDIN_FILENO) and check_stream(sys.stdout, STDOUT_FILENO)
 	
-	if tty:
-		line = readline(prompt)
+	if RETURN_UNICODE:
+		if tty:
+			line_bytes = readline(prompt)
+			line = stdin_decode(line_bytes)
+		else:
+			line = stdio_readline(prompt)
+		
 	else:
-		line = stdio_readline(prompt)
+		if tty:
+			line = readline(prompt)
+		else:
+			line_unicode = stdio_readline(prompt)
+			line = stdin_encode(line_unicode)
 	
 	if line:
 		return line[:-1] # strip strailing "\n"
@@ -82,10 +104,13 @@ def input(prompt=""):
 
 Equivalent to eval(raw_input(prompt))."""
 	
-	return eval(raw_input(prompt))
+	return eval(stdin_decode(raw_input(prompt)))
 
 
-def enable():
+def enable(return_unicode=RETURN_UNICODE):
+	global RETURN_UNICODE
+	RETURN_UNICODE = return_unicode
+	
 	builtins.raw_input = raw_input
 	builtins.input = input
 

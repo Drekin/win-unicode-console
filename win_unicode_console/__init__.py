@@ -16,6 +16,7 @@ def enable(
 		use_readline_hook = True, 
 		use_pyreadline = True, 
 		use_raw_input = True, # PY2
+		raw_input__return_unicode = raw_input.RETURN_UNICODE if PY2 else None, 
 		use_repl = False#, 
 	):
 	
@@ -25,7 +26,7 @@ def enable(
 		readline_hook.enable(use_pyreadline=use_pyreadline)
 	
 	if PY2 and use_raw_input:
-		raw_input.enable()
+		raw_input.enable(raw_input__return_unicode)
 	
 	if use_repl:
 		console.enable()
