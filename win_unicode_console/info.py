@@ -13,6 +13,6 @@ def check_Windows():
 		raise RuntimeError("win_unicode_console is for Windows only, not {}.".format(current_platform))
 
 
-def assure_PY2():
+def check_PY2():
 	if not PY2:
 		raise RuntimeError("the following is needed only in Python 2")

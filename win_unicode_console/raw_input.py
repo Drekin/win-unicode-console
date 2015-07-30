@@ -5,10 +5,10 @@ from ctypes import pythonapi, c_char_p, c_void_p, py_object
 
 from .streams import check_stream, STDIN_FILENO, STDOUT_FILENO
 from .readline_hook import check_encodings, stdio_readline
-from .info import assure_PY2
+from .info import check_PY2
 
 
-assure_PY2()
+check_PY2()
 
 
 original_raw_input = builtins.raw_input
