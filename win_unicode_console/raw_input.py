@@ -104,7 +104,13 @@ def input(prompt=""):
 
 Equivalent to eval(raw_input(prompt))."""
 	
-	return eval(stdin_decode(raw_input(prompt)))
+	string = stdin_decode(raw_input(prompt))
+	
+	caller_frame = sys._getframe(1)
+	globals = caller_frame.f_globals
+	locals = caller_frame.f_locals
+	
+	return eval(string, globals, locals)
 
 
 def enable(return_unicode=RETURN_UNICODE):
