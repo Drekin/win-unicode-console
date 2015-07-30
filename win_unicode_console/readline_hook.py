@@ -38,7 +38,7 @@ def check_encodings():
 		warnings.warn("sys.stdin.encoding == {!r}, whereas sys.stdout.encoding == {!r}, readline hook consumer may assume they are the same".format(sys.stdin.encoding, sys.stdout.encoding), 
 			RuntimeWarning, stacklevel=3)
 
-def stdio_readline(prompt):
+def stdio_readline(prompt=""):
 	sys.stdout.write(prompt)
 	sys.stdout.flush()
 	return sys.stdin.readline()

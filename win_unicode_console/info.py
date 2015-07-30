@@ -15,4 +15,4 @@ def check_Windows():
 
 def check_PY2():
 	if not PY2:
-		raise RuntimeError("the following is needed only in Python 2")
+		raise RuntimeError("needed only in Python 2")

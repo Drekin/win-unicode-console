@@ -1,12 +1,10 @@
 
+from .info import check_PY2
+check_PY2()
+
 import ctypes
 from ctypes import (byref, pythonapi, 
 	c_int, c_char_p, c_void_p, py_object, c_ssize_t)
-
-from .info import check_PY2
-
-
-check_PY2()
 
 
 class FileObject(ctypes.Structure):

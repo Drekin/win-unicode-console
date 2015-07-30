@@ -1,14 +1,13 @@
 
+from .info import check_PY2
+check_PY2()
+
 import __builtin__ as builtins
 import sys
 from ctypes import pythonapi, c_char_p, c_void_p, py_object
 
 from .streams import check_stream, STDIN_FILENO, STDOUT_FILENO
 from .readline_hook import check_encodings, stdio_readline
-from .info import check_PY2
-
-
-check_PY2()
 
 
 original_raw_input = builtins.raw_input
@@ -59,13 +58,11 @@ def stdin_decode(b):
 	else:
 		return b.decode(encoding)
 
-def readline(prompt):
+def readline(prompt=""):
 	check_encodings()
 	prompt_bytes = stdout_encode(prompt)
 	line_bytes = PyOS_Readline(STDIN_FILE_POINTER, STDOUT_FILE_POINTER, prompt_bytes)
 	return line_bytes
-
-
 
 
 def raw_input(prompt=""):
