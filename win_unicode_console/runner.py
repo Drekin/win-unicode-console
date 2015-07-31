@@ -9,7 +9,7 @@ import tokenize
 from ctypes import pythonapi, POINTER, c_long, cast
 from types import CodeType as Code
 
-from . import console, enable
+from . import console, enable, disable
 from .info import PY2
 
 
@@ -111,8 +111,20 @@ def run_script(args):
 				else:
 					traceback.print_exception(e.__class__, e, e.__traceback__.tb_next)
 
+def run_init(args):
+	if args.init == "enable":
+		enable()
+	elif args.init == "disable":
+		disable()
+	elif args.init == "module":
+		__import__(args.module)
+	elif args.init == "none":
+		pass
+	else:
+		raise ValueError("unknown runner init mode {}".format(repr(args.init)))
+
 def run_with_custom_repl(args):
-	enable()
+	run_init(args)
 	
 	if args.script:
 		run_script(args)
@@ -126,7 +138,7 @@ def run_with_custom_repl(args):
 			set_inspect_flag(0)
 
 def run_with_standard_repl(args):
-	enable()
+	run_init(args)
 	
 	if args.script:
 		run_script(args)
@@ -135,13 +147,30 @@ def run_with_standard_repl(args):
 		console.print_banner()
 
 def run_arguments():
-	parser = argparse.ArgumentParser(description="Runs a script with win_unicode_console enabled.")
+	parser = argparse.ArgumentParser(description="Runs a script after customizable initialization. By default, win_unicode_console is enabled.")
 	
-	group = parser.add_mutually_exclusive_group()
-	group.add_argument("--custom-repl", dest="use_repl", action="store_true", 
-		help="use win_unicode_console.console REPL")
-	group.add_argument("--standard-repl", dest="use_repl", action="store_false", 
+	init_group = parser.add_mutually_exclusive_group()
+	init_group.add_argument(
+		"-e", "--init-enable", dest="init", action="store_const", const="enable", 
+		help="enable win_unicode_console on init (default)")
+	init_group.add_argument(
+		"-d", "--init-disable", dest="init", action="store_const", const="disable", 
+		help="disable win_unicode_console on init")
+	init_group.add_argument(
+		"-m", "--init-module", dest="module", 
+		help="import the given module on init")
+	init_group.add_argument(
+		"-n", "--no-init", dest="init", action="store_const", const="none", 
+		help="do nothing special on init")
+	parser.set_defaults(init="enable")
+	
+	repl_group = parser.add_mutually_exclusive_group()
+	repl_group.add_argument(
+		"-s", "--standard-repl", dest="use_repl", action="store_false", 
 		help="use the standard Python REPL (default)")
+	repl_group.add_argument(
+		"-c", "--custom-repl", dest="use_repl", action="store_true", 
+		help="use win_unicode_console.console REPL")
 	parser.set_defaults(use_repl=False)
 	
 	parser.add_argument("script", nargs="?")
@@ -152,6 +181,9 @@ def run_arguments():
 	except SystemExit:
 		set_inspect_flag(0)	# don't go interactive after printing help
 		raise
+	
+	if args.module:
+		args.init = "module"
 	
 	if args.use_repl:
 		run_with_custom_repl(args)
