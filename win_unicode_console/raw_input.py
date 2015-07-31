@@ -62,7 +62,10 @@ def readline(prompt=""):
 	check_encodings()
 	prompt_bytes = stdout_encode(prompt)
 	line_bytes = PyOS_Readline(STDIN_FILE_POINTER, STDOUT_FILE_POINTER, prompt_bytes)
-	return line_bytes
+	if line_bytes is None:
+		raise KeyboardInterrupt
+	else:
+		return line_bytes
 
 
 def raw_input(prompt=""):
