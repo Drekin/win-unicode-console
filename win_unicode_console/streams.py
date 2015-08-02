@@ -208,8 +208,6 @@ class TextTranscodingWrapper(TextStreamWrapper):
 		self.encoding = encoding
 
 class StrStreamWrapper(TextStreamWrapper):
-	encoding = "utf-8"
-	
 	def write(self, s):
 		if isinstance(s, bytes):
 			s = s.decode(self.encoding)
@@ -224,6 +222,7 @@ if PY2:
 			fileobj.set_encoding(base.encoding)
 			fileobj.copy_file_pointer(f)
 			fileobj.readable = base.readable()
+			fileobj.writable = base.writable()
 		
 		# needed for the right interpretation of unicode literals in interactive mode when win_unicode_console is enabled in sitecustomize since Py_Initialize changes encoding afterwards
 		def _reset_encoding(self):
@@ -246,8 +245,8 @@ stdin_text_transcoded = TextTranscodingWrapper(stdin_text, encoding="utf-8")
 stdout_text_transcoded = TextTranscodingWrapper(stdout_text, encoding="utf-8")
 stderr_text_transcoded = TextTranscodingWrapper(stderr_text, encoding="utf-8")
 
-stdout_text_str = StrStreamWrapper(stdout_text)
-stderr_text_str = StrStreamWrapper(stderr_text)
+stdout_text_str = StrStreamWrapper(stdout_text_transcoded)
+stderr_text_str = StrStreamWrapper(stderr_text_transcoded)
 if PY2:
 	stdin_text_fileobj = FileobjWrapper(stdin_text_transcoded, sys.__stdin__)
 	stdout_text_str_fileobj = FileobjWrapper(stdout_text_str, sys.__stdout__)
