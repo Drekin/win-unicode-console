@@ -9,53 +9,97 @@ General information
 
 When running Python in the standard console on Windows, there are several problems when one tries to enter or display Unicode characters. The relevant issue is http://bugs.python.org/issue1602. This package solves some of them.
 
-- First, when you want to display Unicode characters in Windows console, you have to select a font able to display them. This has nothing to do with Python, but is included here for completeness.
+- First, when you want to display Unicode characters in Windows console, you have to select a font able to display them. Similarly, if you want to enter Unicode characters, you have to have you keyboard properly configured. This has nothing to do with Python, but is included here for completeness.
   
 - The standard stream objects (``sys.stdin``, ``sys.stdout``, ``sys.stderr``) are not capable of reading and displaying Unicode characters in Windows console. This has nothing to do with encoding, since even ``sys.stdin.buffer.raw.readline()`` returns ``b"?\n"`` when entering ``α`` and there is no encoding under which ``sys.stdout.buffer.raw.write`` displays ``α``.
   
-  The ``streams`` module provides alternative streams objects, which call ``ReadConsoleW`` and ``WriteConsoleW`` functions to interact with Windows console. The function ``streams.enable`` installs these streams instead of original ones and ``streams.disable`` restores the original ones. After replacing the stream objects, also using ``print`` with a string containing Unicode characters and displaying Unicode characters in the interactive loop works. For ``input``, see below.
+  The ``streams`` module provides several alternative stream objects. ``stdin_raw``, ``stdout_raw``, and ``stderr_raw`` are raw stream objects using WinAPI functions ``ReadConsoleW`` and ``WriteConsoleW`` to interact with Windows console through UTF-16-LE encoded bytes. The ``stdin_text``, ``stdout_text``, and ``stderr_text`` are standard text IO wrappers over standard buffered IO over our raw streams, and are intended to be primary replacements to ``sys.std*`` streams. Unfortunately, other wrappers around ``std*_text`` are needed (see below), so there are more stream objects in ``streams`` module.
   
-- Python interactive loop doesn't use ``sys.stdin`` to read input so fixing it doesn't help. Also the ``input`` function may or may not use ``sys.stdin`` depending on whether ``sys.stdin`` and ``sys.stdout`` have the standard filenos. See http://bugs.python.org/issue17620 for more information.
+  The function ``streams.enable`` installs chosen stream objects instead of the original ones. By default, it chooses appropriate stream objects itself. The function ``streams.disable`` restores the original stream objects (these are stored in ``sys.__std*__`` attributes by Python).
   
-  One way to solve this problem is to provide custom REPL which uses the streams. Such REPL is implemented in ``console`` module and based on stdlib module ``code``. The functions ``console.enable`` and ``console.disable`` maintain (de)activation of our loop.
+  After replacing the stream objects, also using ``print`` with a string containing Unicode characters and displaying Unicode characters in the interactive loop works. For ``input``, see below.
   
-  Since there is no hook to run our interactive loop instead of the standard one, we have to wrap the execution of any Python script so our loop is run at the right place. The logic for this is contained in ``runner`` module and a helper script ``run.py``, which is located outside of out package for practical reasons.
+- Python interactive loop doesn't use ``sys.stdin`` to read input so fixing it doesn't help. Also the ``input`` function may or may not use ``sys.stdin`` depending on whether ``sys.stdin`` and ``sys.stdout`` have the standard filenos and whether they are interactive. See http://bugs.python.org/issue17620 for more information.
   
-  Another and more practical solution is to install a custom readline hook. Readline hook is a function which is used to read a single line interactively by Python REPL. It may also be used by ``input`` function under certain conditions (see above). On Linux, this hook is usually set to GNU readline function, which provides features like autocompletion, history,…
+  To solve this, we install a custom readline hook. Readline hook is a function which is used to read a single line interactively by Python REPL. It may also be used by ``input`` function under certain conditions (see above). On Linux, this hook is usually set to GNU readline function, which provides features like autocompletion, history, …
   
-  The module ``readline_hook`` provides our custom readline hook, which uses ``sys.stdin`` to get the input and is (de)activated by functions ``readline_hook.enable``, ``readline_hook.disable``. There also exists package ``pyreadline`` (https://github.com/pyreadline/pyreadline), which implements GNU readline features on Windows. It provides its own readline hook, which actually supports Unicode input. The problem is, that the input is then encoded using ``sys.stdout.encoding``, which may not be capable of encoding all the characters. Our custom stream objects solve the problem, so the readline hook of ``pyreadline`` can be used as well, and ``readline_hook.enable`` tries to use it if possible as default to preserve the input features of ``pyreadline``.
+  The module ``readline_hook`` provides our custom readline hook, which uses ``sys.stdin`` to get the input and is (de)activated by functions ``readline_hook.enable``, ``readline_hook.disable``. 
   
-- Readline hook can be called from two places – from the REPL and from ``input`` function. In the first case the prompt is encoded using ``sys.stdin.encoding``, but in the second case ``sys.stdout.encoding`` is used. So we need these two encodings be equal.
+  As we said, readline hook can be called from two places – from the REPL and from ``input`` function. In the first case the prompt is encoded using ``sys.stdin.encoding``, but in the second case ``sys.stdout.encoding`` is used. So Python currently makes an assumption that these two encodings are equal.
   
-- Python tokenizer, which is used when parsing the input from REPL, cannot handle UTF-16 or generally any encoding containing null bytes. Because UTF-16-LE is the encoding of Unicode used by Windows, we have to additionally wrap our text stream objects (``io.TextIOWrapper`` with encoding UTF-16-LE over our raw console stream objects) with helper text io objects. This is done automatically by ``streams.enable`` when needed and can be configured.
+- Python tokenizer, which is used when parsing the input from REPL, cannot handle UTF-16 or generally any encoding containing null bytes. Because UTF-16-LE is the encoding of Unicode used by Windows, we have to additionally wrap our text stream objects (``std*_text``). Thus, ``streams`` module contains also stream objects ``stdin_text_transcoded``, ``stdout_text_transcoded``, and ``stderr_text_transcoded``. They basically just hide the underlying UTF-16-LE encoded buffered IO, and sets encoding to UTF-8. These transcoding wrappers are used by default by ``streams.enable``.
 
-``win_unicode_console`` package was tested on Python 3.4 and interacts well with ``pyreadline``, ``IPython``, and ``colorama`` packages.
+There are additional issues on Python 2.
+
+- Since default Python 2 strings correspond to ``bytes`` rather than ``unicode``, people are usually calling ``print`` with ``bytes`` argument. Therefore, ``sys.stdout.write`` and ``sys.stderr.write`` should support ``bytes`` argument. That is why we add ``stdout_text_str`` and ``stderr_text_str`` stream objects to ``streams`` module. They are used by default on Python 2.
+  
+- When we enter a Unicode literal into interactive interpreter, it gets processed by the Python tokenizer, which is bytes-based. When we enter ``u"\u03b1"`` into the interactive interpreter, the tokenizer gets essentially ``b'u"\xce\xb1"'`` plus the information that the encoding used is UTF-8. The problem is that the tokenizer uses the encoding only if ``sys.stdin`` is a file object (see https://hg.python.org/cpython/file/d356e68de236/Parser/tokenizer.c#l797). Hence, we introduce another stream object ``streams.stdin_text_fileobj`` that wraps ``stdin_text_transcoded`` and also is structurally compatible with Python file object. This object is used by default on Python 2.
+  
+- The check for interactive streams done by ``raw_input`` unfortunately requires that both ``sys.stdin`` and ``sys.stdout`` are file objects. Besides ``stdin_text_fileobj`` for stdin we could use also ``stdout_text_str_fileobj`` for stdout. Unfortunately, that breaks ``print``.
+  
+  Using ``print`` statement or function leads to calling ``PyFile_WriteObject`` with ``sys.stdout`` as argument. Unfortunately, its generic ``write`` method is used only if it is *not* a file object. Otherwise, ``PyObject_Print`` is called, and this function is file-based, so it ends with a ``fprintf`` call, which is not something we want. In conclusion, we need stdout *not* to be a file object.
+  
+  Given the situation described, the best solution seems to be reimplementing ``raw_input`` and ``input`` builtin functions and monkeypatching ``__builtins__``. This is done by our ``raw_input`` module on Python 2.
 
 
 Installation
 ------------
 
-Install the package from PyPI via ``pip install win-unicode-console`` (recommended) or download the archive and install it from the archive (e.g. ``pip install win_unicode_console-0.3.zip``) or install the package manually by placing directory ``win_unicode_console`` and module ``run.py`` from the archive to ``site-packages`` directory of your Python installation.
+Install the package from PyPI via ``pip install win-unicode-console`` (recommended), or download the archive and install it from the archive (e.g. ``pip install win_unicode_console-0.4.zip``), or install the package manually by placing directory ``win_unicode_console`` and module ``run.py`` from the archive to the ``site-packages`` directory of your Python installation.
 
 
 Usage
 -----
 
-Recommened usage is just calling ``win_unicode_console.enable()`` whenever the fixes should be applied and ``win_unicode_console.disable()`` to revert all the changes. By default, custom stream objects are installed as well as custom readline hook. In the case that ``pyreadline`` is available, its readline hook is reused. For customization, see the sources. The logic should be clear.
+The top-level ``win_unicode_console`` module contains a function ``enable``, which install various fixes offered by ``win_unicode_console`` modules, and a function ``disable``, which restores the original environment. By default, custom stream objects are installed as well as a custom readline hook. On Python 2, ``raw_input`` and ``input`` functions are monkeypatched. For customization, see the sources. The logic should be clear.
 
-Calling ``win_unicode_console.enable()`` may be done automatically on Python startup by putting the command to your ``sitecustomize`` or ``usercustomize`` script. See https://docs.python.org/3/tutorial/interpreter.html#the-customization-modules for more information.
+Generic usage of the package is just calling ``win_unicode_console.enable()`` whenever the fixes should be applied and ``win_unicode_console.disable()`` to revert all the changes. Note that it should be a responsibility of a Python user on Windows to install ``win_unicode_console`` and fix his Python environment regarding Unicode interaction with console, rather than of a third-party developer enabling ``win_unicode_console`` in his application, which adds a dependency. Our package should be seen as an external patch to Python on Windows rather than a feature package for other packages not directly related to fixing Unicode issues.
 
-To run a Python script with our custom REPL (which is not needed with the approach above), type ``py -i -m run script.py`` instead of ``py -i script.py``. You can also put ``"C:\Windows\py.exe" -i -m run "%1" %*`` to the registry in order to run .py files interactivelly and using custom REPL. To run the custom REPL when plain interactive console is run (just 'py') add environment variable ``PYTHONSTARTUP`` pointing to ``site-packages\run.py``.
+Different ways of how ``win_unicode_console`` can be used to fix a Python environment on Windows follow.
+
+- *Python patch (recommended).* Just call ``win_unicode_console.enable()`` in your ``sitecustomize`` or ``usercustomize`` module (see https://docs.python.org/3/tutorial/appendix.html#the-customization-modules for more information). This will enable ``win_unicode_console`` on every run of the Python interpreter (unless ``site`` is disabled). Doing so should not break executed scripts in any way. Otherwise, it is a bug of ``win_unicode_console`` that should be fixed.
+
+- *Opt-in runner.* You may easily run a script with ``win_unicode_console`` enabled by using our ``runner`` module and its helper ``run`` script. To do so, execute ``py -i -m run script.py`` instead of ``py -i script.py`` for interactive mode, and similarly ``py -m run script.py`` instead of ``py script.py`` for non-interactive mode. Of course you may provide arguments to your script: ``py -i -m run script.py arg1 arg2``. To run the bare interactive interpreter with ``win_unicode_console`` enabled, execute ``py -i -m run``.
+
+- *Opt-out runner.* In case you are using ``win_unicode_console`` as Python patch, but you want to run a particular script with ``win_unicode_console`` disabled, you can also use the runner. To do so, execute ``py -i -m run --init-disable script.py``.
+
+- *Customized runner.* To move arbitrary initialization (e.g. enabling ``win_unicode_console`` with non-default arguments) from ``sitecustomize`` to opt-in runner, move it to a separate module and use ``py -i -m run --init-module module script.py``. That will import a module ``module`` on startup instead of enabling ``win_unicode_console`` with default arguments.
+
+
+Compatibility
+-------------
+
+``win_unicode_console`` package was tested on Python 3.4, Python 3.5, and Python 2.7. 32-bit or 64-bit shouldn't matter. It also interacts well with the following packages:
+
+- ``colorama`` package (https://pypi.python.org/pypi/colorama) makes ANSI escape character sequences (for producing colored terminal text and cursor positioning) work under MS Windows. It does so by wrapping ``sys.stdout`` and ``sys.stderr`` streams. Since ``win_unicode_console`` replaces the streams in order to support Unicode, ``win_unicode_console.enable`` has to be called before ``colorama.init`` so everything works as expected.
+  
+  As of ``colorama`` v0.3.3, there is an early binding issue (https://github.com/tartley/colorama/issues/32), so ``win_unicode_console.enable`` has to be called even before importing ``colorama``. Note that is already the case when ``win_unicode_console`` is used as Python patch or as opt-in runner. The issue is already fixed, but there is no new release yet.
+
+- ``pyreadline`` package (https://pypi.python.org/pypi/pyreadline/2.0)  implements GNU readline features on Windows. It provides its own readline hook, which actually supports Unicode input. ``win_unicode_console.readline_hook`` detects when ``pyreadline`` is active, and in that case, by default, reuses its readline hook rather than installing its own, so GNU readline features are preserved on top of our Unicode streams.
+
+- ``IPython`` (https://pypi.python.org/pypi/ipython/3.2.1) can be also used  with ``win_unicode_console``.
+  
+  As of ``IPython`` 3.2.1, there is an early binding issue (https://github.com/ipython/ipython/issues/8669), so ``win_unicode_console.enable`` has to be called even before importing ``IPython``. That is the case when ``win_unicode_console`` is used as Python patch.
+  
+  There was also an issue such that IPython is not compatible with builtin function ``raw_input`` returning unicode on Python 2 (https://github.com/ipython/ipython/issues/8670). If you hit the issue, you can make ``win_unicode_console.raw_input.raw_input`` return bytes by enabling it as ``win_unicode_console.enable(raw_input__return_unicode=False)``. The issue is already fixed, but there is no new release yet.
 
 
 Backward incompatibility
 ------------------------
 
-From version 0.3, the custom stream objects have the standard filenos, so calling ``input`` doesn't handle Unicode without custom readline hook.
+- Since version 0.4, the signature of ``streams.enable`` has been changed because there are now more options for the stream objects to be used. It now accepts a keyword argument for each ``stdin``, ``stdout``, ``stderr``, setting the corresponding stream. ``None`` means “do not set”, ``Ellipsis`` means “use the default value”.
+  
+  A function ``streams.enable_only`` was added. It works the same way as ``streams.enable``, but the default value for each parameter is ``None``.
+  
+  Functions ``streams.enable_reader``, ``streams.enable_writer``, and ``streams.enable_error_writer`` have been removed. Example: instead of ``streams.enable_reader(transcode=True)`` use ``streams.enable_only(stdin=streams.stdin_text_transcoding)``.
+  
+  There are also corresponding changes in top-level ``enable`` function.
+  
+- Since version 0.3, the custom stream objects have the standard filenos, so calling ``input`` doesn't handle Unicode without custom readline hook.
 
 
 Acknowledgements
 ----------------
 
-- The code of ``streams`` module is based on the code submited to http://bugs.python.org/issue1602.
+- The code of ``streams`` module is based on the code submitted to http://bugs.python.org/issue1602.
 - The idea of providing custom readline hook and the code of ``readline_hook`` module is based on https://github.com/pyreadline/pyreadline.
