@@ -5,26 +5,30 @@ import time
 from ctypes import byref, windll, c_ulong
 
 from .buffer import get_buffer
-from .info import PY2
+from .info import WINDOWS, PY2
 
 if PY2:
 	from .file_object import FileObject
 
 
-kernel32 = windll.kernel32
-GetStdHandle = kernel32.GetStdHandle
-ReadConsoleW = kernel32.ReadConsoleW
-WriteConsoleW = kernel32.WriteConsoleW
-GetLastError = kernel32.GetLastError
+if WINDOWS:
+	from ctypes import windll
+	
+	kernel32 = windll.kernel32
+	GetStdHandle = kernel32.GetStdHandle
+	ReadConsoleW = kernel32.ReadConsoleW
+	WriteConsoleW = kernel32.WriteConsoleW
+	GetLastError = kernel32.GetLastError
+	
+	STDIN_HANDLE = GetStdHandle(-10)
+	STDOUT_HANDLE = GetStdHandle(-11)
+	STDERR_HANDLE = GetStdHandle(-12)
 
 
 ERROR_SUCCESS = 0
 ERROR_NOT_ENOUGH_MEMORY = 8
 ERROR_OPERATION_ABORTED = 995
 
-STDIN_HANDLE = GetStdHandle(-10)
-STDOUT_HANDLE = GetStdHandle(-11)
-STDERR_HANDLE = GetStdHandle(-12)
 
 STDIN_FILENO = 0
 STDOUT_FILENO = 1
@@ -233,23 +237,24 @@ if PY2:
 			return self.base.readline(size)
 
 
-stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
-stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE, STDOUT_FILENO)
-stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE, STDERR_FILENO)
-
-stdin_text = io.TextIOWrapper(io.BufferedReader(stdin_raw), encoding="utf-16-le", line_buffering=True)
-stdout_text = io.TextIOWrapper(io.BufferedWriter(stdout_raw), encoding="utf-16-le", line_buffering=True)
-stderr_text = io.TextIOWrapper(io.BufferedWriter(stderr_raw), encoding="utf-16-le", line_buffering=True)
-
-stdin_text_transcoded = TextTranscodingWrapper(stdin_text, encoding="utf-8")
-stdout_text_transcoded = TextTranscodingWrapper(stdout_text, encoding="utf-8")
-stderr_text_transcoded = TextTranscodingWrapper(stderr_text, encoding="utf-8")
-
-stdout_text_str = StrStreamWrapper(stdout_text_transcoded)
-stderr_text_str = StrStreamWrapper(stderr_text_transcoded)
-if PY2:
-	stdin_text_fileobj = FileobjWrapper(stdin_text_transcoded, sys.__stdin__)
-	stdout_text_str_fileobj = FileobjWrapper(stdout_text_str, sys.__stdout__)
+if WINDOWS:
+	stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
+	stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE, STDOUT_FILENO)
+	stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE, STDERR_FILENO)
+	
+	stdin_text = io.TextIOWrapper(io.BufferedReader(stdin_raw), encoding="utf-16-le", line_buffering=True)
+	stdout_text = io.TextIOWrapper(io.BufferedWriter(stdout_raw), encoding="utf-16-le", line_buffering=True)
+	stderr_text = io.TextIOWrapper(io.BufferedWriter(stderr_raw), encoding="utf-16-le", line_buffering=True)
+	
+	stdin_text_transcoded = TextTranscodingWrapper(stdin_text, encoding="utf-8")
+	stdout_text_transcoded = TextTranscodingWrapper(stdout_text, encoding="utf-8")
+	stderr_text_transcoded = TextTranscodingWrapper(stderr_text, encoding="utf-8")
+	
+	stdout_text_str = StrStreamWrapper(stdout_text_transcoded)
+	stderr_text_str = StrStreamWrapper(stderr_text_transcoded)
+	if PY2:
+		stdin_text_fileobj = FileobjWrapper(stdin_text_transcoded, sys.__stdin__)
+		stdout_text_str_fileobj = FileobjWrapper(stdout_text_str, sys.__stdout__)
 
 
 def disable():
@@ -277,6 +282,9 @@ def check_stream(stream, fileno):
 
 # PY3 # def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 def enable(stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
+	if not WINDOWS:
+		return
+	
 	# defaults
 	if PY2:
 		if stdin is Ellipsis:

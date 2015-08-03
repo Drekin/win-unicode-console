@@ -1,8 +1,6 @@
 
-from .info import check_Windows, PY2
-check_Windows()
-
 from . import streams, console, readline_hook
+from .info import WINDOWS, PY2
 
 if PY2:
 	from . import raw_input
@@ -20,6 +18,9 @@ def enable(
 		use_repl = False#, 
 	):
 	
+	if not WINDOWS:
+		return
+	
 	streams.enable(stdin=stdin, stdout=stdout, stderr=stderr)
 	
 	if use_readline_hook:
@@ -32,6 +33,9 @@ def enable(
 		console.enable()
 
 def disable():
+	if not WINDOWS:
+		return
+	
 	if console.running_console is not None:
 		console.disable()
 	
