@@ -2,7 +2,7 @@
 import io
 import sys
 import time
-from ctypes import byref, windll, c_ulong
+from ctypes import byref, c_ulong
 
 from .buffer import get_buffer
 from .info import WINDOWS, PY2
