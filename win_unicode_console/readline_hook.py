@@ -4,6 +4,7 @@ from __future__ import print_function # PY2
 import sys
 import traceback
 import warnings
+import ctypes.util
 from ctypes import (pythonapi, cdll, cast, 
 	c_char_p, c_void_p, c_size_t, CFUNCTYPE)
 
@@ -15,11 +16,23 @@ except ImportError:
 	pyreadline = None
 
 
+def get_libc():
+	if WINDOWS:
+		path = "msvcrt"
+	else:
+		path = ctypes.util.find_library("c")
+		if path is None:
+			raise RuntimeError("cannot locate libc")
+	
+	return cdll[path]
+
+LIBC = get_libc()
+
 PyMem_Malloc = pythonapi.PyMem_Malloc
 PyMem_Malloc.restype = c_size_t
 PyMem_Malloc.argtypes = [c_size_t]
 
-strncpy = cdll.msvcrt.strncpy if WINDOWS else cdll["libc.so.6"].strncpy
+strncpy = LIBC.strncpy
 strncpy.restype = c_char_p
 strncpy.argtypes = [c_char_p, c_char_p, c_size_t]
 
