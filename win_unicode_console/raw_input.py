@@ -24,8 +24,8 @@ PyFile_AsFile = pythonapi.PyFile_AsFile
 PyFile_AsFile.restype = c_void_p
 PyFile_AsFile.argtypes = [py_object]
 
-STDIN_FILE_POINTER = PyFile_AsFile(py_object(sys.stdin))
-STDOUT_FILE_POINTER = PyFile_AsFile(py_object(sys.stdout))
+STDIN_FILE_POINTER = PyFile_AsFile(sys.stdin)
+STDOUT_FILE_POINTER = PyFile_AsFile(sys.stdout)
 
 
 def stdout_encode(s):
