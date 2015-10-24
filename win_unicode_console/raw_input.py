@@ -6,7 +6,7 @@ import __builtin__ as builtins
 import sys
 from ctypes import pythonapi, c_char_p, c_void_p, py_object
 
-from .streams import check_stream, STDIN_FILENO, STDOUT_FILENO
+from .streams import STDIN, STDOUT
 from .readline_hook import check_encodings, stdio_readline
 
 
@@ -78,7 +78,7 @@ is printed without a trailing newline before reading."""
 	
 	sys.stderr.flush()
 	
-	tty = check_stream(sys.stdin, STDIN_FILENO) and check_stream(sys.stdout, STDOUT_FILENO)
+	tty = STDIN.is_a_TTY() and STDOUT.is_a_TTY()
 	
 	if RETURN_UNICODE:
 		if tty:

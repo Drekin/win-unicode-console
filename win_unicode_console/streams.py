@@ -12,31 +12,69 @@ if PY2:
 
 
 if WINDOWS:
-	from ctypes import windll
+	from ctypes import WinDLL, get_last_error, set_last_error, WinError
+	from msvcrt import get_osfhandle
 	
-	kernel32 = windll.kernel32
-	GetStdHandle = kernel32.GetStdHandle
+	kernel32 = WinDLL("kernel32", use_last_error=True)
 	ReadConsoleW = kernel32.ReadConsoleW
 	WriteConsoleW = kernel32.WriteConsoleW
-	GetLastError = kernel32.GetLastError
-	
-	STDIN_HANDLE = GetStdHandle(-10)
-	STDOUT_HANDLE = GetStdHandle(-11)
-	STDERR_HANDLE = GetStdHandle(-12)
+	GetConsoleMode = kernel32.GetConsoleMode
 
 
 ERROR_SUCCESS = 0
+ERROR_INVALID_HANDLE = 6
 ERROR_NOT_ENOUGH_MEMORY = 8
 ERROR_OPERATION_ABORTED = 995
-
-
-STDIN_FILENO = 0
-STDOUT_FILENO = 1
-STDERR_FILENO = 2
 
 EOF = b"\x1a"
 
 MAX_BYTES_WRITTEN = 32767	# arbitrary because WriteConsoleW ability to write big buffers depends on heap usage
+
+
+class StandardStreamInfo:
+	def __init__(self, name, standard_fileno):
+		self.name = name
+		self.fileno = standard_fileno
+		self.handle = get_osfhandle(standard_fileno) if WINDOWS else None
+	
+	def __repr__(self):
+		return "<{} '{}' fileno={} handle={}>".format(self.__class__.__name__, self.name, self.fileno, self.handle)
+	
+	@property
+	def stream(self):
+		return getattr(sys, self.name)
+	
+	def is_a_TTY(self):
+		# the test used in input()
+		try:
+			fileno = self.stream.fileno()
+		except io.UnsupportedOperation:
+			return False
+		else:
+			return fileno == self.fileno and self.stream.isatty()
+	
+	def is_a_console(self):
+		if self.handle is None:
+			return False
+		
+		if GetConsoleMode(self.handle, byref(c_ulong())):
+			return True
+		else:
+			last_error = get_last_error()
+			if last_error == ERROR_INVALID_HANDLE:
+				return False
+			else:
+				raise WinError(last_error)
+	
+	def should_be_fixed(self):
+		if self.stream is None:	# e.g. with IDLE
+			return True
+		
+		return self.is_a_TTY() and self.is_a_console()
+
+STDIN = StandardStreamInfo("stdin", standard_fileno=0)
+STDOUT = StandardStreamInfo("stdout", standard_fileno=1)
+STDERR = StandardStreamInfo("stderr", standard_fileno=2)
 
 
 class _ReprMixin:
@@ -89,29 +127,22 @@ class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 		code_units_to_be_read = bytes_to_be_read // 2
 		code_units_read = c_ulong()
 		
-		retval = ReadConsoleW(self.handle, buffer, code_units_to_be_read, byref(code_units_read), None)
-		if GetLastError() == ERROR_OPERATION_ABORTED:
+		set_last_error(ERROR_SUCCESS)
+		ReadConsoleW(self.handle, buffer, code_units_to_be_read, byref(code_units_read), None)
+		last_error = get_last_error()
+		if last_error == ERROR_OPERATION_ABORTED:
 			time.sleep(0.1)	# wait for KeyboardInterrupt
-		if not retval:
-			raise OSError("Windows error {}".format(GetLastError()))
+		if last_error != ERROR_SUCCESS:
+			raise WinError(last_error)
 		
 		if buffer[0] == EOF:
 			return 0
 		else:
-			return 2 * code_units_read.value
+			return 2 * code_units_read.value # bytes read
 
 class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 	def writable(self):
 		return True
-	
-	@staticmethod
-	def _error_message(errno):
-		if errno == ERROR_SUCCESS:
-			return "Windows error {} (ERROR_SUCCESS); zero bytes written on nonzero input, probably just one byte given".format(errno)
-		elif errno == ERROR_NOT_ENOUGH_MEMORY:
-			return "Windows error {} (ERROR_NOT_ENOUGH_MEMORY); try to lower `win_unicode_console.streams.MAX_BYTES_WRITTEN`".format(errno)
-		else:
-			return "Windows error {}".format(errno)
 	
 	def write(self, b):
 		bytes_to_be_written = len(b)
@@ -119,15 +150,16 @@ class WindowsConsoleRawWriter(WindowsConsoleRawIOBase):
 		code_units_to_be_written = min(bytes_to_be_written, MAX_BYTES_WRITTEN) // 2
 		code_units_written = c_ulong()
 		
-		retval = WriteConsoleW(self.handle, buffer, code_units_to_be_written, byref(code_units_written), None)
-		bytes_written = 2 * code_units_written.value
+		if code_units_to_be_written == 0 != bytes_to_be_written:
+			raise ValueError("two-byte code units expected, just one byte given")
 		
-		# fixes both infinite loop of io.BufferedWriter.flush() on when the buffer has odd length
-		#	and situation when WriteConsoleW refuses to write lesser than MAX_BYTES_WRITTEN bytes
-		if bytes_written == 0 != bytes_to_be_written:
-			raise OSError(self._error_message(GetLastError()))
-		else:
-			return bytes_written
+		if not WriteConsoleW(self.handle, buffer, code_units_to_be_written, byref(code_units_written), None):
+			exc = WinError(get_last_error())
+			if exc.winerror == ERROR_NOT_ENOUGH_MEMORY:
+				exc.strerror += " Try to lower `win_unicode_console.streams.MAX_BYTES_WRITTEN`."
+			raise exc
+		
+		return 2 * code_units_written.value # bytes written
 
 
 class _TextStreamWrapperMixin(_ReprMixin):
@@ -238,9 +270,9 @@ if PY2:
 
 
 if WINDOWS:
-	stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN_HANDLE, STDIN_FILENO)
-	stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT_HANDLE, STDOUT_FILENO)
-	stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR_HANDLE, STDERR_FILENO)
+	stdin_raw = WindowsConsoleRawReader("<stdin>", STDIN.handle, STDIN.fileno)
+	stdout_raw = WindowsConsoleRawWriter("<stdout>", STDOUT.handle, STDOUT.fileno)
+	stderr_raw = WindowsConsoleRawWriter("<stderr>", STDERR.handle, STDERR.fileno)
 	
 	stdin_text = io.TextIOWrapper(io.BufferedReader(stdin_raw), encoding="utf-16-le", line_buffering=True)
 	stdout_text = io.TextIOWrapper(io.BufferedWriter(stdout_raw), encoding="utf-16-le", line_buffering=True)
@@ -265,21 +297,6 @@ def disable():
 	sys.stdout = sys.__stdout__
 	sys.stderr = sys.__stderr__
 
-def check_stream(stream, fileno):
-	if stream is None:	# e.g. with IDLE
-		return True
-	
-	try:
-		_fileno = stream.fileno()
-	except io.UnsupportedOperation:
-		return False
-	else:
-		if _fileno == fileno and stream.isatty():
-			stream.flush()
-			return True
-		else:
-			return False
-
 # PY3 # def enable(*, stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 def enable(stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 	if not WINDOWS:
@@ -301,11 +318,13 @@ def enable(stdin=Ellipsis, stdout=Ellipsis, stderr=Ellipsis):
 		if stderr is Ellipsis:
 			stderr = stderr_text_transcoded
 	
-	if stdin is not None and check_stream(sys.stdin, STDIN_FILENO):
+	if stdin is not None and STDIN.should_be_fixed():
 		sys.stdin = stdin
-	if stdout is not None and check_stream(sys.stdout, STDOUT_FILENO):
+	if stdout is not None and STDOUT.should_be_fixed():
+		sys.stdout.flush()
 		sys.stdout = stdout
-	if stderr is not None and check_stream(sys.stderr, STDERR_FILENO):
+	if stderr is not None and STDERR.should_be_fixed():
+		sys.stderr.flush()
 		sys.stderr = stderr
 
 # PY3 # def enable_only(*, stdin=None, stdout=None, stderr=None):
