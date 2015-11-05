@@ -88,7 +88,8 @@ class ReadlineHookManager:
 				return new_zero_terminated_string(line.encode(sys.stdin.encoding))
 			
 		except:
-			print("Intenal win_unicode_console error", file=sys.stderr)
+			self.restore_original()
+			print("Intenal win_unicode_console error, disabling custom readline hook...", file=sys.stderr)
 			traceback.print_exc(file=sys.stderr)
 			return new_zero_terminated_string(b"\n")
 	
