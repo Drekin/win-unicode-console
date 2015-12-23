@@ -89,7 +89,7 @@ class ReadlineHookManager:
 			
 		except:
 			self.restore_original()
-			print("Intenal win_unicode_console error, disabling custom readline hook...", file=sys.stderr)
+			print("Internal win_unicode_console error, disabling custom readline hook...", file=sys.stderr)
 			traceback.print_exc(file=sys.stderr)
 			return new_zero_terminated_string(b"\n")
 	
