@@ -81,7 +81,7 @@ Compatibility
   
   As of ``IPython`` 3.2.1, there is an early binding issue (https://github.com/ipython/ipython/issues/8669), so ``win_unicode_console.enable`` has to be called even before importing ``IPython``. That is the case when ``win_unicode_console`` is used as Python patch.
   
-  There was also an issue that IPython was not compatible with the builtin function ``raw_input`` returning unicode on Python 2 (https://github.com/ipython/ipython/issues/8670). If you hit this issue, you can make ``win_unicode_console.raw_input.raw_input`` return bytes by enabling it as ``win_unicode_console.enable(raw_input__return_unicode=False)``. The was fixed in IPython 4.
+  There was also an issue that IPython was not compatible with the builtin function ``raw_input`` returning unicode on Python 2 (https://github.com/ipython/ipython/issues/8670). If you hit this issue, you can make ``win_unicode_console.raw_input.raw_input`` return bytes by enabling it as ``win_unicode_console.enable(raw_input__return_unicode=False)``. This was fixed in IPython 4.
 
 
 Backward incompatibility
