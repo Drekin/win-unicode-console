@@ -77,11 +77,11 @@ Compatibility
 
 - ``pyreadline`` package (https://pypi.python.org/pypi/pyreadline/2.0)  implements GNU readline features on Windows. It provides its own readline hook, which actually supports Unicode input. ``win_unicode_console.readline_hook`` detects when ``pyreadline`` is active, and in that case, by default, reuses its readline hook rather than installing its own, so GNU readline features are preserved on top of our Unicode streams.
 
-- ``IPython`` (https://pypi.python.org/pypi/ipython/3.2.1) can be also used  with ``win_unicode_console``.
+- ``IPython`` (https://pypi.python.org/pypi/ipython) can be also used  with ``win_unicode_console``.
   
   As of ``IPython`` 3.2.1, there is an early binding issue (https://github.com/ipython/ipython/issues/8669), so ``win_unicode_console.enable`` has to be called even before importing ``IPython``. That is the case when ``win_unicode_console`` is used as Python patch.
   
-  There was also an issue such that IPython is not compatible with builtin function ``raw_input`` returning unicode on Python 2 (https://github.com/ipython/ipython/issues/8670). If you hit the issue, you can make ``win_unicode_console.raw_input.raw_input`` return bytes by enabling it as ``win_unicode_console.enable(raw_input__return_unicode=False)``. The issue is already fixed, but there is no new release yet.
+  There was also an issue that IPython was not compatible with the builtin function ``raw_input`` returning unicode on Python 2 (https://github.com/ipython/ipython/issues/8670). If you hit this issue, you can make ``win_unicode_console.raw_input.raw_input`` return bytes by enabling it as ``win_unicode_console.enable(raw_input__return_unicode=False)``. This was fixed in IPython 4.
 
 
 Backward incompatibility
