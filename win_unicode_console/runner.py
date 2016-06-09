@@ -19,18 +19,18 @@ def set_inspect_flag(value):
 	inspect_flag.value = int(value)
 
 
+CODE_FIELDS = ["argcount", "kwonlyargcount", "nlocals", "stacksize", 
+		"flags", "code", "consts", "names", "varnames", "filename", 
+		"name", 	"firstlineno", "lnotab", "freevars", "cellvars"]
+if PY2:
+	CODE_FIELDS.remove("kwonlyargcount")
+
 def update_code(codeobj, **kwargs):
-	fields = ["argcount", "kwonlyargcount", "nlocals", "stacksize", "flags",
-		"code", "consts", "names", "varnames", "filename", "name",
-		"firstlineno", "lnotab", "freevars", "cellvars"]
-	
 	def field_values():
-		for field in fields:
-			value = kwargs.get(field, None)
-			if value is None:
-				yield getattr(codeobj, "co_{}".format(field))
-			else:
-				yield value
+		for field in CODE_FIELDS:
+			original_value = getattr(codeobj, "co_{}".format(field))
+			value = kwargs.get(field, original_value)
+			yield value
 	
 	return Code(*field_values())
 
@@ -56,13 +56,19 @@ def update_code_recursively(codeobj, **kwargs):
 
 
 def get_code(path):
-	with tokenize.open(path) as f:	# opens with detected source encoding
-		source = f.read()
+	if PY2:
+		from .tokenize_open import read_source_lines
+		source = u"".join(read_source_lines(path))
+	else:
+		with tokenize.open(path) as f: # opens with detected source encoding
+			source = f.read()
 	
 	try:
-		code = compile(source, path, "exec")
+		code = compile(source, path, "exec", dont_inherit=True)
 	except UnicodeEncodeError:
-		code = compile(source, "<encoding error>", "exec")
+		code = compile(source, "<encoding error>", "exec", dont_inherit=True)
+		if PY2:
+			path = path.encode("utf-8")
 		code = update_code_recursively(code, filename=path)
 			# so code constains correct filename (even if it contains Unicode)
 			# and tracebacks show contents of code lines
@@ -87,29 +93,31 @@ def run_script(args):
 	path = args.script
 	__main__.__file__ = path
 	
-	if PY2:
+	try:
+		code = get_code(path)
+	except Exception as e:
+		traceback.print_exception(e.__class__, e, None, file=sys.stderr)
+	else:
 		try:
-			execfile(path, __main__.__dict__)
+			exec(code, __main__.__dict__)
 		except BaseException as e:
 			if not sys.flags.inspect and isinstance(e, SystemExit):
 				raise
-			else:
+				
+			elif PY2: # Python 2 produces tracebacks in mixed encoding (!)
 				etype, e, tb = sys.exc_info()
-				traceback.print_exception(etype, e, tb.tb_next)
-		
-	else: # PY3
-		try:
-			code = get_code(path)
-		except Exception as e:
-			traceback.print_exception(e.__class__, e, None)
-		else:
-			try:
-				exec(code, __main__.__dict__)
-			except BaseException as e:
-				if not sys.flags.inspect and isinstance(e, SystemExit):
-					raise
-				else:
-					traceback.print_exception(e.__class__, e, e.__traceback__.tb_next)
+				for line in traceback.format_exception(etype, e, tb.tb_next):
+					line = line.decode("utf-8", "replace")
+					try:
+						sys.stderr.write(line)
+					except UnicodeEncodeError:
+						line = line.encode(sys.stderr.encoding, "backslashreplace")
+						sys.stderr.write(line)
+					
+					sys.stderr.flush() # is this needed?
+				
+			else: # PY3
+				traceback.print_exception(e.__class__, e, e.__traceback__.tb_next, file=sys.stderr)
 
 def run_init(args):
 	if args.init == "enable":
