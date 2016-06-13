@@ -5,6 +5,9 @@ from .info import WINDOWS, PY2
 if PY2:
 	from . import raw_input
 
+if PY2 and WINDOWS:
+	from . import unicode_argv
+
 
 # PY3 # def enable(*, 
 def enable(
@@ -15,6 +18,7 @@ def enable(
 		use_pyreadline = True, 
 		use_raw_input = True, # PY2
 		raw_input__return_unicode = raw_input.RETURN_UNICODE if PY2 else None, 
+		use_unicode_argv = False, # PY2, has some issues
 		use_repl = False#, 
 	):
 	
@@ -29,6 +33,9 @@ def enable(
 	if PY2 and use_raw_input:
 		raw_input.enable(raw_input__return_unicode)
 	
+	if PY2 and use_unicode_argv:
+		unicode_argv.enable()
+	
 	if use_repl:
 		console.enable()
 
@@ -40,6 +47,7 @@ def disable():
 		console.disable()
 	
 	if PY2:
+		unicode_argv.disable()
 		raw_input.disable()
 	
 	readline_hook.disable()
