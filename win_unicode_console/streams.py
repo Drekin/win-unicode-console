@@ -47,7 +47,12 @@ class StandardStreamInfo:
 	def is_a_TTY(self):
 		# the test used in input()
 		try:
-			fileno = self.stream.fileno()
+			get_fileno = self.stream.fileno
+		except AttributeError: # e.g. StringIO in Python 2
+			return False
+		
+		try:
+			fileno = get_fileno()
 		except io.UnsupportedOperation:
 			return False
 		else:
