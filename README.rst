@@ -41,17 +41,19 @@ There are additional issues on Python 2.
   
   Given the situation described, the best solution seems to be reimplementing ``raw_input`` and ``input`` builtin functions and monkeypatching ``__builtins__``. This is done by our ``raw_input`` module on Python 2.
 
+- Similarly to the input from from ``sys.stdin`` the arguments in ``sys.argv`` are also ``bytes`` on Python 2 and the original ones may not be reconstructable. To overcome this we add ``unicode_argv`` module. The function ``unicode_argv.get_unicode_argv`` returns Unicode version of ``sys.argv`` obtained by WinAPI functions ``GetCommandLineW`` and ``CommandLineToArgvW``. The function ``unicode_argv.enable`` monkeypatches ``sys.argv`` with the Unicode arguments.
+
 
 Installation
 ------------
 
-Install the package from PyPI via ``pip install win-unicode-console`` (recommended), or download the archive and install it from the archive (e.g. ``pip install win_unicode_console-0.4.zip``), or install the package manually by placing directory ``win_unicode_console`` and module ``run.py`` from the archive to the ``site-packages`` directory of your Python installation.
+Install the package from PyPI via ``pip install win-unicode-console`` (recommended), or download the archive and install it from the archive (e.g. ``pip install win_unicode_console-0.x.zip``), or install the package manually by placing directory ``win_unicode_console`` and module ``run.py`` from the archive to the ``site-packages`` directory of your Python installation.
 
 
 Usage
 -----
 
-The top-level ``win_unicode_console`` module contains a function ``enable``, which install various fixes offered by ``win_unicode_console`` modules, and a function ``disable``, which restores the original environment. By default, custom stream objects are installed as well as a custom readline hook. On Python 2, ``raw_input`` and ``input`` functions are monkeypatched. For customization, see the sources. The logic should be clear.
+The top-level ``win_unicode_console`` module contains a function ``enable``, which install various fixes offered by ``win_unicode_console`` modules, and a function ``disable``, which restores the original environment. By default, custom stream objects are installed as well as a custom readline hook. On Python 2, ``raw_input`` and ``input`` functions are monkeypatched. ``sys.argv`` is not monkeypatched by default since unfortunately some Python 2 code strictly assumes ``str`` instances in ``sys.argv`` list. Use ``enable(use_unicode_argv=True)`` if you want the monkeypathcing. For further customization, see the sources. The logic should be clear.
 
 Generic usage of the package is just calling ``win_unicode_console.enable()`` whenever the fixes should be applied and ``win_unicode_console.disable()`` to revert all the changes. Note that it should be a responsibility of a Python user on Windows to install ``win_unicode_console`` and fix his Python environment regarding Unicode interaction with console, rather than of a third-party developer enabling ``win_unicode_console`` in his application, which adds a dependency. Our package should be seen as an external patch to Python on Windows rather than a feature package for other packages not directly related to fixing Unicode issues.
 
@@ -73,7 +75,7 @@ Compatibility
 
 - ``colorama`` package (https://pypi.python.org/pypi/colorama) makes ANSI escape character sequences (for producing colored terminal text and cursor positioning) work under MS Windows. It does so by wrapping ``sys.stdout`` and ``sys.stderr`` streams. Since ``win_unicode_console`` replaces the streams in order to support Unicode, ``win_unicode_console.enable`` has to be called before ``colorama.init`` so everything works as expected.
   
-  As of ``colorama`` v0.3.3, there is an early binding issue (https://github.com/tartley/colorama/issues/32), so ``win_unicode_console.enable`` has to be called even before importing ``colorama``. Note that is already the case when ``win_unicode_console`` is used as Python patch or as opt-in runner. The issue is already fixed, but there is no new release yet.
+  As of ``colorama`` v0.3.3, there was an early binding issue (https://github.com/tartley/colorama/issues/32), so ``win_unicode_console.enable`` has to be called even before importing ``colorama``. Note that is already the case when ``win_unicode_console`` is used as Python patch or as opt-in runner. The issue was already fixed.
 
 - ``pyreadline`` package (https://pypi.python.org/pypi/pyreadline/2.0)  implements GNU readline features on Windows. It provides its own readline hook, which actually supports Unicode input. ``win_unicode_console.readline_hook`` detects when ``pyreadline`` is active, and in that case, by default, reuses its readline hook rather than installing its own, so GNU readline features are preserved on top of our Unicode streams.
 
@@ -103,3 +105,5 @@ Acknowledgements
 
 - The code of ``streams`` module is based on the code submitted to http://bugs.python.org/issue1602.
 - The idea of providing custom readline hook and the code of ``readline_hook`` module is based on https://github.com/pyreadline/pyreadline.
+- The code related to ``unicode_argv.get_full_unicode_argv`` is based on http://code.activestate.com/recipes/572200/.
+- The idea of using path hooks and the code related to ``unicode_argv.argv_setter_hook`` is based on https://mail.python.org/pipermail/python-list/2016-June/710183.html.
