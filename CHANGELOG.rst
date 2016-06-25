@@ -2,6 +2,15 @@
 Changelog
 =========
 
+0.5
+---
+
+- Recovering of Unicode ``sys.argv`` on Python 2 is now supported: module ``unicode_argv`` was added. Fixes #20.
+- The runner uses ``compile(..., dont_inherit=True)`` even on Python 2. Fixes #14.
+- Console detection was enhanced: ``StandardStreamInfo`` objects with methods ``is_a_TTY``, ``is_a_console``, ``should_be_fixed`` in ``streams`` module. ``sys.std*`` streams without ``fileno`` (e.g. Python 2 ``StringIO``) are supported.
+- Custom readline hook is disabled on error to avoid an infinite loop in interactive session.
+
+
 0.4
 ---
 
