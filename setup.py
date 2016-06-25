@@ -11,7 +11,7 @@ def read(*relative_path_parts):
 	with open(path.join(HERE, *relative_path_parts), encoding=ENCODING) as f:
 		return f.read()
 
-VERSION = "0.4-post"
+VERSION = "0.5"
 README = "README.rst"
 URL = "https://github.com/Drekin/win-unicode-console"
 
