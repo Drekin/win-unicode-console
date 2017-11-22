@@ -131,7 +131,7 @@ if pyreadline:
 
 # PY3 # def enable(*, use_pyreadline=True):
 def enable(use_pyreadline=True):
-	check_encodings()
+	# check_encodings()
 	
 	if use_pyreadline and pyreadline:
 		pyreadline_manager.set_codepage(sys.stdin.encoding)

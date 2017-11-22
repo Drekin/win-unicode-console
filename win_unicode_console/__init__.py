@@ -27,7 +27,7 @@ def enable(
 	
 	streams.enable(stdin=stdin, stdout=stdout, stderr=stderr)
 	
-	if use_readline_hook:
+	if use_readline_hook and streams.STDIN.should_be_fixed():
 		readline_hook.enable(use_pyreadline=use_pyreadline)
 	
 	if PY2 and use_raw_input:
