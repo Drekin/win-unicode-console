@@ -26,7 +26,7 @@ ERROR_INVALID_HANDLE = 6
 ERROR_NOT_ENOUGH_MEMORY = 8
 ERROR_OPERATION_ABORTED = 995
 
-EOF = b"\x1a"
+EOF = b"\x1a\x00" # as Windows wide char
 
 MAX_BYTES_WRITTEN = 32767	# arbitrary because WriteConsoleW ability to write big buffers depends on heap usage
 
@@ -140,7 +140,7 @@ class WindowsConsoleRawReader(WindowsConsoleRawIOBase):
 		if last_error != ERROR_SUCCESS:
 			raise WinError(last_error)
 		
-		if buffer[0] == EOF:
+		if buffer[:len(EOF)] == EOF:
 			return 0
 		else:
 			return 2 * code_units_read.value # bytes read
