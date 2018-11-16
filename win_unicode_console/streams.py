@@ -12,13 +12,21 @@ if PY2:
 
 
 if WINDOWS:
-	from ctypes import WinDLL, get_last_error, set_last_error, WinError
+	from ctypes import WinDLL, get_last_error, set_last_error, WinError, c_ulong, c_void_p, POINTER
 	from msvcrt import get_osfhandle
+	
+	HANDLE = c_void_p
+	DWORD = c_ulong
+	LPDWORD = POINTER(DWORD)
+	LPVOID = c_void_p
 	
 	kernel32 = WinDLL("kernel32", use_last_error=True)
 	ReadConsoleW = kernel32.ReadConsoleW
+	ReadConsoleW.argtypes = (HANDLE, LPVOID, DWORD, LPDWORD, LPVOID)
 	WriteConsoleW = kernel32.WriteConsoleW
+	WriteConsoleW.argtypes = (HANDLE, LPVOID, DWORD, LPDWORD, LPVOID)
 	GetConsoleMode = kernel32.GetConsoleMode
+	GetConsoleMode.argtypes = (HANDLE, LPDWORD)
 
 
 ERROR_SUCCESS = 0
