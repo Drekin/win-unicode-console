@@ -4,10 +4,12 @@ win-unicode-console
 
 A Python package to enable Unicode input and display when running Python from Windows console.
 
+The package is not needed on Python 3.6 and newer since the underlying issue has been resolved (see https://docs.python.org/3/whatsnew/3.6.html#whatsnew36-pep528).
+
 General information
 -------------------
 
-When running Python in the standard console on Windows, there are several problems when one tries to enter or display Unicode characters. The relevant issue is http://bugs.python.org/issue1602. This package solves some of them.
+When running Python (3.5 and older) in the standard console on Windows, there are several problems when one tries to enter or display Unicode characters. The relevant issue is http://bugs.python.org/issue1602. This package solves some of them.
 
 - First, when you want to display Unicode characters in Windows console, you have to select a font able to display them. Similarly, if you want to enter Unicode characters, you have to have you keyboard properly configured. This has nothing to do with Python, but is included here for completeness.
   
@@ -71,7 +73,7 @@ Different ways of how ``win_unicode_console`` can be used to fix a Python enviro
 Compatibility
 -------------
 
-``win_unicode_console`` package was tested on Python 3.4, Python 3.5, and Python 2.7. 32-bit or 64-bit shouldn't matter. It also interacts well with the following packages:
+``win_unicode_console`` package was tested on Python 3.4, Python 3.5, and Python 2.7 (it is not needed on Python 3.6+). 32-bit or 64-bit shouldn't matter. It also interacts well with the following packages:
 
 - ``colorama`` package (https://pypi.python.org/pypi/colorama) makes ANSI escape character sequences (for producing colored terminal text and cursor positioning) work under MS Windows. It does so by wrapping ``sys.stdout`` and ``sys.stderr`` streams. Since ``win_unicode_console`` replaces the streams in order to support Unicode, ``win_unicode_console.enable`` has to be called before ``colorama.init`` so everything works as expected.
   
